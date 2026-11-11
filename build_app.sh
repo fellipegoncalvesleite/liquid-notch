@@ -36,25 +36,40 @@ if [[ -d $ADAPTER ]]; then
 else
   echo "note: no Now Playing adapter (run tools/build_adapter.sh); using the notification fallback"
 fi
+# Updates (1.1): Sparkle's framework (universal), symlinks kept.
+SPARKLE=.build/artifacts/sparkle/Sparkle/Sparkle.xcframework/macos-arm64_x86_64/Sparkle.framework
+[[ -d $SPARKLE ]] || swift package resolve
+mkdir -p "$APP/Contents/Frameworks"
+ditto $SPARKLE "$APP/Contents/Frameworks/Sparkle.framework"
 
 # Signing. An ad-hoc signature changes with every build, so macOS treats each build as a new app
 # and forgets the permissions given to the last one; a real identity keeps them. LN_SIGN_IDENTITY
 # wins (Developer ID: hardened runtime + timestamp); else a local "Apple Development" identity is
 # used if there is one; else ad-hoc.
 ENT=Resources/LiquidNotch.entitlements
+# Sparkle's helpers are signed one by one, innermost first, the way Sparkle's docs ask (never --deep), then each
+# framework. Takes the codesign flags of the branch below.
+sign_frameworks() {
+  local S="$APP/Contents/Frameworks/Sparkle.framework/Versions/B"
+  codesign --force "$@" "$S/XPCServices/Installer.xpc"
+  codesign --force "$@" --preserve-metadata=entitlements "$S/XPCServices/Downloader.xpc"
+  codesign --force "$@" "$S/Autoupdate"
+  codesign --force "$@" "$S/Updater.app"
+  codesign --force "$@" "$APP"/Contents/Frameworks/*
+}
 DEV_ID=$(security find-identity -p codesigning -v 2>/dev/null | sed -nE 's/.*"(Apple Development: [^"]+)".*/\1/p' | head -1)
 if [[ -n "${LN_ADHOC:-}" ]]; then
   # Public release builds: ad-hoc, so no personal certificate (name, team ID) ships inside the app.
-  [[ -d "$APP/Contents/Frameworks" ]] && codesign --force --sign - "$APP"/Contents/Frameworks/*
+  sign_frameworks --sign -
   codesign --force --sign - "$APP"
 elif [[ -n "${LN_SIGN_IDENTITY:-}" ]]; then
-  [[ -d "$APP/Contents/Frameworks" ]] && codesign --force --options runtime --timestamp --sign "$LN_SIGN_IDENTITY" "$APP"/Contents/Frameworks/*
+  sign_frameworks --options runtime --timestamp --sign "$LN_SIGN_IDENTITY"
   codesign --force --options runtime --timestamp --entitlements $ENT --sign "$LN_SIGN_IDENTITY" "$APP"
 elif [[ -n "$DEV_ID" ]]; then
-  [[ -d "$APP/Contents/Frameworks" ]] && codesign --force --options runtime --sign "$DEV_ID" "$APP"/Contents/Frameworks/*
+  sign_frameworks --options runtime --sign "$DEV_ID"
   codesign --force --options runtime --entitlements $ENT --sign "$DEV_ID" "$APP"
 else
-  [[ -d "$APP/Contents/Frameworks" ]] && codesign --force --sign - "$APP"/Contents/Frameworks/*
+  sign_frameworks --sign -
   codesign --force --sign - "$APP"
 fi
 echo "Built $APP"

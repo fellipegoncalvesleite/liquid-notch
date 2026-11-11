@@ -1,9 +1,9 @@
 import AppKit
 
 /// The right-click menu's Show On and Notch submenus (11-11): which screen the island goes on, and whether a real notch
-/// is used where there is one.
+/// is used where there is one. Then Check for Updates….
 @MainActor
-final class NotchMenu: NSObject {
+final class NotchMenu: NSObject, NSMenuItemValidation {
     static let shared = NotchMenu()
 
     func add(to menu: NSMenu) {
@@ -27,6 +27,16 @@ final class NotchMenu: NSObject {
         }
         notch.autoenablesItems = false
         menu.addItem(withTitle: "Notch", action: nil, keyEquivalent: "").submenu = notch
+
+        // Updates (1.1): Sparkle checks daily by itself; this checks now.
+        let update = menu.addItem(withTitle: "Check for Updates…", action: #selector(checkForUpdates), keyEquivalent: "")
+        update.target = self
+    }
+
+    @objc private func checkForUpdates() { Updates.shared.checkNow() }
+
+    func validateMenuItem(_ item: NSMenuItem) -> Bool {
+        item.action != #selector(checkForUpdates) || Updates.shared.canCheck
     }
 
     @objc private func setPlacement(_ sender: NSMenuItem) {

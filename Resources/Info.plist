@@ -15,6 +15,11 @@
 	<key>LSUIElement</key><true/>
 	<key>NSHighResolutionCapable</key><true/>
 	<key>NSPrincipalClass</key><string>NSApplication</string>
+	<!-- Updates (1.1, Sparkle): the appcast attached to the latest GitHub release, update files signed with this key
+	     (tools/updates.sh), checked daily without asking first. -->
+	<key>SUFeedURL</key><string>https://github.com/fellipegoncalvesleite/liquid-notch/releases/latest/download/appcast.xml</string>
+	<key>SUPublicEDKey</key><string>o8el3DG6btCbJTOzmrBO46fKHfMiSsUbTd9+3fXDVA8=</string>
+	<key>SUEnableAutomaticChecks</key><true/>
 	<key>NSCalendarsFullAccessUsageDescription</key><string>Liquid Notch shows your next meeting and its join link.</string>
 	<key>NSBluetoothAlwaysUsageDescription</key><string>Liquid Notch shows your AirPods connecting and their battery.</string>
 	<key>NSFocusStatusUsageDescription</key><string>Liquid Notch shows when a Focus is on.</string>

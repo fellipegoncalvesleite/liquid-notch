@@ -4,6 +4,8 @@ import PackageDescription
 let package = Package(
     name: "LiquidNotch",
     platforms: [.macOS(.v15)],
+    // Sparkle: updates for copies already installed (1.1). Its framework is copied into the app by build_app.sh.
+    dependencies: [.package(url: "https://github.com/sparkle-project/Sparkle", from: "2.6.0")],
     targets: [
         // The island's state model: who holds the ears, the bubble and the card, from the
         // activities and where you are on the Mac. Pure (no AppKit), so it can be unit-tested
@@ -22,12 +24,14 @@ let package = Package(
         ),
         .executableTarget(
             name: "LiquidNotch",
-            dependencies: ["IslandCore", "NowPlaying"],
+            dependencies: ["IslandCore", "NowPlaying", .product(name: "Sparkle", package: "Sparkle")],
             path: "Sources/LiquidNotch",
             // The shader is compiled at runtime from source (see LiquidRenderer),
             // so SwiftPM must not try to build it.
             exclude: ["Render/LiquidShape.metal"],
-            swiftSettings: [.swiftLanguageMode(.v6)]
+            swiftSettings: [.swiftLanguageMode(.v6)],
+            // Sparkle.framework sits in the app's Contents/Frameworks.
+            linkerSettings: [.unsafeFlags(["-Xlinker", "-rpath", "-Xlinker", "@executable_path/../Frameworks"])]
         ),
         .testTarget(
             name: "IslandCoreTests",

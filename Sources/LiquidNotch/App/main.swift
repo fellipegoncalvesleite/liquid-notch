@@ -9,5 +9,7 @@ if let i = CommandLine.arguments.firstIndex(of: "--snapshot") {
 
 let app = NSApplication.shared
 let delegate = MainActor.assumeIsolated { AppDelegate() }
+// Updates (1.1): only from a built app, never a bare `swift run` binary, which has no bundle to replace.
+if Bundle.main.bundleURL.pathExtension == "app" { MainActor.assumeIsolated { Updates.shared.start() } }
 app.delegate = delegate
 app.run()
