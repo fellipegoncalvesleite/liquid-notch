@@ -463,4 +463,37 @@ final class IslandTests: XCTestCase {
         i.apply(.context(c))
         XCTAssertEqual(i.arrangement.balls, [.media2], "another tab: it's back in its ball")
     }
+
+    // NP-DISP1 (11-11, two displays): the song leaves the island only while you're at its player on the island's own
+    // display. Its app in front on the other display, or in front with no window on screen (minimized), keeps it here.
+    func testTheSongLeavesOnlyForItsPlayerOnTheIslandsDisplay() {
+        var i = Island()
+        i.apply(.startMedia)
+        i.mediaApp = "com.spotify.client"
+        i.mediaTitle = "Blinding Lights"
+        var c = DesktopContext(frontmostApp: "com.spotify.client")
+        c.frontOnIslandScreen = true
+        i.apply(.context(c))
+        XCTAssertNil(i.arrangement.ears, "at its player, on this display: it leaves")
+        c.frontOnIslandScreen = false
+        i.apply(.context(c))
+        XCTAssertEqual(i.arrangement.ears, .media, "its window on the other display, or minimized: it stays")
+    }
+
+    // NP-DISP2: a browser's player on the other display stays, even on its own tab; another app in front never matters.
+    func testABrowserPlayerOnTheOtherDisplayStays() {
+        var i = Island()
+        i.apply(.startMedia)
+        i.mediaApp = "com.google.Chrome"
+        i.mediaTitle = "Blinding Lights"
+        var c = DesktopContext(frontmostApp: "com.google.Chrome")
+        c.frontWindowTitle = "Blinding Lights - YouTube Music - Google Chrome"
+        c.frontOnIslandScreen = false
+        i.apply(.context(c))
+        XCTAssertEqual(i.arrangement.ears, .media)
+        c.frontmostApp = "com.apple.finder"
+        c.frontOnIslandScreen = true
+        i.apply(.context(c))
+        XCTAssertEqual(i.arrangement.ears, .media, "a buried player: another app in front")
+    }
 }

@@ -123,6 +123,15 @@ enum ContextSensing {
         }
     }
 
+    /// The frontmost app's front window (its first normal window in the list, which runs front to back, on screen only)
+    /// is mostly on `screen`. No window on screen (minimized, hidden): false. Global top-left coordinates.
+    static func frontWindowOnScreen(_ windows: [WindowInfo], frontPID: Int32, screen: CGRect) -> Bool {
+        guard let w = windows.first(where: { $0.pid == frontPID && $0.layer == 0 && $0.bounds.width > 1 && $0.bounds.height > 1 })
+        else { return false }
+        let shared = w.bounds.intersection(screen)
+        return !shared.isNull && shared.width * shared.height * 2 > w.bounds.width * w.bounds.height
+    }
+
     /// A menu hangs from the menu bar of this screen (an app's menu or a status item's), not ours.
     static func menuOpen(_ windows: [WindowInfo], ownPID: Int32, screen: CGRect, menuBarHeight: Double) -> Bool {
         windows.contains { w in

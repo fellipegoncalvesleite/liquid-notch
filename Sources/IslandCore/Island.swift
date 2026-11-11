@@ -67,6 +67,10 @@ public struct DesktopContext: Equatable, Sendable {
     /// The front window's title while a browser is in front (its active tab): a player in that browser leaves the
     /// island only while you're on its own tab (owner, 11-11).
     public var frontWindowTitle: String?
+    /// The frontmost app's front window is on screen on the island's display (11-11). False when it's on another
+    /// display, or when the app has no window on screen (minimized, hidden): you aren't looking at it from here. Only
+    /// where a player plays reads it (`inOwnPlace`); what's playing never depends on windows or displays.
+    public var frontOnIslandScreen = true
 
     public init(frontmostApp: String = BundleID.finder, fullscreen: Bool = false, menuOpen: Bool = false,
                 typing: Bool = false, sharing: Bool = false, locked: Bool = false, micInUse: Bool = false,
@@ -628,10 +632,11 @@ public struct Island: Equatable, Sendable {
         return a
     }
 
-    /// You're where this player plays: its app in front, and in a browser its own tab (the window's title has the
-    /// player's title in it; YouTube's tab reads "(1) <title> - YouTube"). Unknown tab: the app counts.
+    /// You're where this player plays: its app in front with its window on the island's display, and in a browser its
+    /// own tab (the window's title has the player's title in it; YouTube's tab reads "(1) <title> - YouTube"). Unknown
+    /// tab: the app counts. With the player on another display, or minimized, the song stays (11-11).
     public func inOwnPlace(_ app: String, _ title: String) -> Bool {
-        guard context.frontmostApp == app else { return false }
+        guard context.frontmostApp == app, context.frontOnIslandScreen else { return false }
         guard AppRules.browsers.contains(app), let w = context.frontWindowTitle, !w.isEmpty else { return true }
         let t = title.trimmingCharacters(in: .whitespaces)
         guard !t.isEmpty else { return true }

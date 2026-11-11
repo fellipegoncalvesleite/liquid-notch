@@ -127,4 +127,24 @@ final class ContextTests: XCTestCase {
         tray.focusTurnedOff()
         XCTAssertNil(tray.focusName)
     }
+
+    // NP-DISP3 (11-11): where the frontmost app's front window is, from the window list (on screen only, front to
+    // back). Two displays side by side: the built-in at (0, 0), an external to its right.
+    func testTheFrontWindowIsOnTheIslandsDisplay() {
+        let builtIn = CGRect(x: 0, y: 0, width: 1710, height: 1112)
+        let spotify: Int32 = 7, chrome: Int32 = 9
+        let onExternal = ContextSensing.WindowInfo(pid: spotify, layer: 0, bounds: CGRect(x: 1900, y: 100, width: 1200, height: 800))
+        let onBuiltIn = ContextSensing.WindowInfo(pid: spotify, layer: 0, bounds: CGRect(x: 100, y: 100, width: 1200, height: 800))
+        let chromeHere = ContextSensing.WindowInfo(pid: chrome, layer: 0, bounds: CGRect(x: 0, y: 38, width: 1710, height: 1074))
+        let bar = ContextSensing.WindowInfo(pid: spotify, layer: 24, bounds: CGRect(x: 0, y: 0, width: 1710, height: 38))
+        XCTAssertTrue(ContextSensing.frontWindowOnScreen([bar, onBuiltIn], frontPID: spotify, screen: builtIn))
+        XCTAssertFalse(ContextSensing.frontWindowOnScreen([onExternal], frontPID: spotify, screen: builtIn), "the other display")
+        XCTAssertFalse(ContextSensing.frontWindowOnScreen([chromeHere, bar], frontPID: spotify, screen: builtIn),
+                       "minimized: no window of its own on screen")
+        XCTAssertFalse(ContextSensing.frontWindowOnScreen([onExternal, onBuiltIn], frontPID: spotify, screen: builtIn),
+                       "its front window decides, not one behind it")
+        // A window straddling both displays counts where most of it is.
+        let straddling = ContextSensing.WindowInfo(pid: spotify, layer: 0, bounds: CGRect(x: 1500, y: 100, width: 1000, height: 600))
+        XCTAssertFalse(ContextSensing.frontWindowOnScreen([straddling], frontPID: spotify, screen: builtIn))
+    }
 }

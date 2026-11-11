@@ -193,6 +193,8 @@ final class ContextMonitor {
         }
         context.fullscreen = fullscreen
         context.menuOpen = ContextSensing.menuOpen(windows, ownPID: ownPID, screen: s.frame, menuBarHeight: s.menuBarHeight)
+        // Whether you're looking at the front app from the island's display (a player there takes its song off the island).
+        context.frontOnIslandScreen = ContextSensing.frontWindowOnScreen(windows, frontPID: front, screen: s.frame)
         publish()
     }
 
