@@ -15,7 +15,18 @@ enum SnapshotRunner {
     static let scale = 2.0
 
     static func run(outputDirectory: String) {
-        CrestStore.shared.offline = true   // stills never touch the network: crests are badges unless cached
+        // Stills never touch the network (crests are badges unless cached), except README stills (`LN_SNAP_README=1`):
+        // those fetch the sample teams' real crests first, as the app does at runtime.
+        let readme = ProcessInfo.processInfo.environment["LN_SNAP_README"] != nil
+        CrestStore.shared.offline = !readme
+        if readme {
+            let teams = [FootballSamples.palmeiras, FootballSamples.flamengo, FootballSamples.barcelona, FootballSamples.atletico]
+            for t in teams { _ = CrestStore.shared.image(t) }
+            let until = Date().addingTimeInterval(6)
+            while Date() < until, teams.contains(where: { CrestStore.shared.images[$0.key] == nil }) {
+                RunLoop.main.run(until: Date().addingTimeInterval(0.1))
+            }
+        }
         let dir = URL(fileURLWithPath: outputDirectory, isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
 

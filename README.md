@@ -16,6 +16,11 @@ A liquid shape that pours, stretches and splits, with your album art's glow arou
 <p align="center"><img src=".github/media/demo.gif" width="100%" alt="Liquid Notch: the tools and a timer, music, lyrics, Ask, recording, a call, AirPods, a YouTube video in the island and in picture in picture, a Claude Code approval, the lock screen"></p>
 <p align="center"><sub>The full demo, in 60 fps: <a href="../../releases/latest">demo.mp4 on the release page</a>.</sub></p>
 
+<p align="center">
+  <a href="https://www.paypal.com/ncp/payment/8ZCX7UBTXTXXN"><img src="https://img.shields.io/badge/☕_Buy_me_a_coffee-PayPal-0070BA?style=for-the-badge&logo=paypal&logoColor=white" height="36" alt="Buy me a coffee"></a><br>
+  <sub>Liquid Notch is free and open source. If it makes your notch nicer, a coffee keeps it going.</sub>
+</p>
+
 <table>
   <tr>
     <td width="50%"><img src=".github/media/player.png" alt="The player card"><br><b>The player.</b> Seek, skip, AirPlay. Hover the ears for a quick preview.</td>
