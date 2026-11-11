@@ -1,0 +1,8 @@
+.build/
+dist/
+.swiftpm/
+*.xcodeproj/
+.DS_Store
+snapshots/
+sim/airpods-4.js
+sim/studio.js

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
+	<key>CFBundleName</key><string>Liquid Notch</string>
+	<key>CFBundleDisplayName</key><string>Liquid Notch</string>
+	<key>CFBundleIdentifier</key><string>com.fellipe.liquidnotch</string>
+	<key>CFBundleExecutable</key><string>LiquidNotch</string>
+	<key>CFBundlePackageType</key><string>APPL</string>
+	<key>CFBundleShortVersionString</key><string>1.0</string>
+	<key>CFBundleVersion</key><string>3</string>
+	<key>LSMinimumSystemVersion</key><string>15.0</string>
+	<key>LSUIElement</key><true/>
+	<key>NSHighResolutionCapable</key><true/>
+	<key>NSPrincipalClass</key><string>NSApplication</string>
+	<key>NSCalendarsFullAccessUsageDescription</key><string>Liquid Notch shows your next meeting and its join link.</string>
+	<key>NSBluetoothAlwaysUsageDescription</key><string>Liquid Notch shows your AirPods connecting and their battery.</string>
+	<key>NSFocusStatusUsageDescription</key><string>Liquid Notch shows when a Focus is on.</string>
+	<key>NSAudioCaptureUsageDescription</key><string>Liquid Notch moves the music bars with the sound your Mac plays. Nothing is recorded or saved.</string>
+	<key>NSAppleEventsUsageDescription</key><string>Liquid Notch controls Music and Spotify (play, pause, skip) when it can't read Now Playing directly.</string>
+</dict>
+</plist>
