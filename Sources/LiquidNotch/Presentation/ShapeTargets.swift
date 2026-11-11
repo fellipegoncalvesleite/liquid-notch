@@ -92,9 +92,12 @@ struct ShapeTargets {
 
     func resting(_ mode: PresentationMode) -> ShapeState {
         let t = tuning
+        // Balls as tall as the ears at most (a virtual notch under a 24 pt menu bar, 11-11).
+        let ballRadius = EarMetrics.radius(t.dropRadius, notchHeight: notchHeight)
         let aura = OKLab.fromSRGB(SRGB.parse(context.auraHex ?? t.auraHex) ?? SIMD3(1, 0.3, 0.6))
         let ears = { (extent: Double) in
-            ShapeState(mainHalfWidth: notchHalfWidth + extent, mainHeight: notchHeight, mainRadius: t.earRadius,
+            ShapeState(mainHalfWidth: notchHalfWidth + extent, mainHeight: notchHeight,
+                       mainRadius: EarMetrics.radius(t.earRadius, notchHeight: notchHeight),
                        kBezel: t.kBezelCompact, glowIntensity: t.glowCompact, glowFalloff: t.falloffCompact)
         }
         // The notch at rest: its own size, rounder, its shoulders flaring into the top edge (owner, 11-06).
@@ -152,8 +155,8 @@ struct ShapeTargets {
         s.auraB = aura.z
         if hasDroplet(mode) {
             // Beside the right ear, inside the menu bar strip: never on the screen below.
-            s.dropRadius = t.dropRadius
-            s.dropY = notchHeight - t.dropRadius
+            s.dropRadius = ballRadius
+            s.dropY = notchHeight - ballRadius
             s.dropX = s.mainHalfWidth + t.dropGap + t.dropRadius
         } else {
             // Tucked inside the blob, size zero.
@@ -163,7 +166,7 @@ struct ShapeTargets {
         }
         // More balls (11-06): the left one mirrors the right; the small +N ball sits 12 pt past the right one. One that
         // isn't out sits inside its neighbour with no size, so it buds out of it and shrinks back in.
-        let r0 = t.dropRadius, rm = 13.0
+        let r0 = ballRadius, rm = 13.0 * ballRadius / t.dropRadius
         let left = -(s.mainHalfWidth + t.dropGap + r0), right = s.mainHalfWidth + t.dropGap + r0
         let leftOn = context.leftBallModes.contains(mode), moreOn = context.moreModes.contains(mode)
         s.e1X = leftOn ? left : -min(s.mainHalfWidth, notchHalfWidth) * 0.5

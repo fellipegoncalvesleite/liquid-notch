@@ -70,6 +70,8 @@ final class FrameModel {
     @ObservationIgnored var peekHeight = 68.0
     @ObservationIgnored var expandedHeight = 172.0
     @ObservationIgnored var bubbleRadius = 18.0
+    /// The ears' content scale for this notch (`EarMetrics`): 1 in a real notch.
+    var earScale: Double { EarMetrics.scale(notchHeight: notchHeight) }
 
     func update(_ f: ShapeFrame) {
         let s = f.state
@@ -274,8 +276,12 @@ private struct MusicEarsLayer: View {
         let nh = frame.notchHeight
         let pk = clamp((h - nh) / max(frame.peekHeight - nh, 1), 0, 1.1)
         let lipC = nh + (frame.peekHeight - nh) / 2
-        let pose = (artX: lerp(l + 11, l + 16, pk), artY: lerp(7.75, lipC - 15, pk), art: lerp(22, 30, pk),
-                    corner: lerp(6, 8, pk), barsX: lerp(r - 29, r - 124, pk), barsY: lerp(12.25, lipC - 6.5, pk))
+        // At rest the cover and the bars are centred in the notch at its ear scale (`EarMetrics`; 22 and 13 pt in a real
+        // notch, 7.75 and 12.25 pt from the top).
+        let e = frame.earScale
+        let pose = (artX: lerp(l + 11, l + 16, pk), artY: lerp((nh - 22 * e) / 2, lipC - 15, pk), art: lerp(22 * e, 30, pk),
+                    corner: lerp(6 * e, 8, pk), barsX: lerp(r - 11 - 18 * e, r - 124, pk), barsY: lerp((nh - 13 * e) / 2, lipC - 6.5, pk),
+                    barsScale: lerp(e, 1, min(pk, 1)))
         var size: Double, corner: Double, artX: Double, artY: Double, barsScale: Double, barsX: Double, barsY: Double
         if inCard {
             let q = clamp(ch / model.card.height, 0, 1.15)
@@ -291,16 +297,16 @@ private struct MusicEarsLayer: View {
                 size = lerp(pose.art, big, qf); corner = lerp(pose.corner, 22, qf)
                 artX = lerp(pose.artX, FrameModel.cx + frame.cardX - Island.focusCard.halfWidth + inset, qf); artY = lerp(pose.artY, ct + inset, qf)
                 // The bars go to the card's top right corner, clear of the title.
-                barsScale = lerp(1, 1.2, qf)
+                barsScale = lerp(pose.barsScale, 1.2, qf)
                 barsX = lerp(pose.barsX, FrameModel.cx + frame.cardX + Island.focusCard.halfWidth - 28 - 22, qf); barsY = lerp(pose.barsY, ct + 30, qf)
             } else {
                 size = lerp(pose.art, 58, q); corner = lerp(pose.corner, 14, q)
                 artX = lerp(pose.artX, cl + 20, q); artY = lerp(pose.artY, cty + 20, q)
-                barsScale = lerp(1, 1.33, q); barsX = lerp(pose.barsX, crt - 44, q); barsY = lerp(pose.barsY, cty + 28, q)
+                barsScale = lerp(pose.barsScale, 1.33, q); barsX = lerp(pose.barsX, crt - 44, q); barsY = lerp(pose.barsY, cty + 28, q)
             }
         } else {
             size = pose.art; corner = pose.corner; artX = pose.artX; artY = pose.artY
-            barsScale = 1; barsX = pose.barsX; barsY = pose.barsY
+            barsScale = pose.barsScale; barsX = pose.barsX; barsY = pose.barsY
         }
         let vinyl = inCard && model.groups.player && director.vinylOut
         return ZStack(alignment: .topLeading) {
@@ -609,7 +615,11 @@ private struct HUDLayer: View {
     @Environment(\.islandMotion) private var motion
 
     var body: some View {
-        let nh = frame.notchHeight
+        let nh = frame.notchHeight, e = frame.earScale
+        // Sizes at the ears' scale (`EarMetrics`; as designed in a real notch).
+        let iconFont: CGFloat = 13 * e, box: CGFloat = 18 * e, digits: CGFloat = 12 * e, percent: CGFloat = 10 * e
+        let iconY: CGFloat = (nh - box) / 2 + 0.5 * e, textY: CGFloat = (nh - box) / 2 + 0.25 * e
+        let textX: CGFloat = frame.left + 13 + 24 * e
         let bright = director.island.hud == .brightness
         let level = director.hudLevel
         let tint = Color.white              // white for brightness too (owner, 11-01)
@@ -617,22 +627,22 @@ private struct HUDLayer: View {
                           : (level <= 0 ? "speaker.slash.fill" : "speaker.wave.3.fill")
         ZStack(alignment: .topLeading) {
             Image(systemName: icon, variableValue: bright || level <= 0 ? nil : level)
-                .font(.system(size: 13, weight: .semibold))
+                .font(.system(size: iconFont, weight: .semibold))
                 .foregroundStyle(.white)
                 .symbolEffect(.bounce, options: .nonRepeating, value: motion.reduce ? 0 : level)
-                .frame(width: 18, height: 18)
-                .offset(x: frame.left + 13, y: (nh - 18) / 2 + 0.5)
+                .frame(width: box, height: box)
+                .offset(x: frame.left + 13, y: iconY)
             // Quieter than the icon (12 pt medium, the % smaller and dimmer), and nudged so the digits'
             // middle sits on the ears' midline with the icon (measured on the 2x snapshot).
-            (Text("\(Int((level * 100).rounded()))").font(.system(size: 12, weight: .medium).monospacedDigit())
-             + Text("%").font(.system(size: 10, weight: .medium)).foregroundColor(.white.opacity(0.6)))
+            (Text("\(Int((level * 100).rounded()))").font(.system(size: digits, weight: .medium).monospacedDigit())
+             + Text("%").font(.system(size: percent, weight: .medium)).foregroundColor(.white.opacity(0.6)))
                 .foregroundStyle(.white.opacity(0.9))
-                .frame(height: 18)
-                .offset(x: frame.left + 37, y: (nh - 18) / 2 + 0.25)
+                .frame(height: box)
+                .offset(x: textX, y: textY)
             // A slider (v1): under the pointer or held it thickens from 6 to 10 pt like the player's scrubber, and follows
             // the drag without a spring (the spring is for key presses). Read-only, it dims.
             let held = director.hudHeld
-            let bar = held ? 10.0 : 6.0
+            let bar = (held ? 10.0 : 6.0) * e
             Capsule().fill(tint.opacity(0.22))
                 .overlay(alignment: .leading) {
                     Capsule().fill(tint.opacity(director.hudReadOnly ? 0.5 : 1)).frame(width: IslandDirector.hudBarWidth * level)

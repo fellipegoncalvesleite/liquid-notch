@@ -119,9 +119,11 @@ struct AgentsEarsLayer: View {
         let pk = min(max((frame.height - nh) / max(frame.peekHeight - nh, 1), 0), 1.1)
         let lipC = nh + (frame.peekHeight - nh) / 2
         // The ball as drawn in the ears (22 pt) and in a ball's peek (24 pt, 26 with its padding), at the row's left.
-        let full = 24 * 1.08, scale = 22.0 / 24 + (1 - 22.0 / 24) * pk
+        // In the ears at their scale (`EarMetrics`; 22 pt in a real notch).
+        let e = frame.earScale, ear = 22.0 * e / 24
+        let full = 24 * 1.08, scale = ear + (1 - ear) * pk
         let ballX = frame.left + 12 + 5 * pk
-        let ballY = (nh - full * 22 / 24) / 2 + (lipC - full / 2 - (nh - full * 22 / 24) / 2) * pk
+        let ballY = (nh - full * ear) / 2 + (lipC - full / 2 - (nh - full * ear) / 2) * pk
         ZStack(alignment: .topLeading) {
             if let provider = provider ?? last {
                 let a = director.island.agents
@@ -131,7 +133,9 @@ struct AgentsEarsLayer: View {
                     .scaleEffect(scale, anchor: .topLeading)
                     .offset(x: ballX, y: ballY)
                 Text(word).font(IslandType.ear).foregroundStyle(color).lineLimit(1)
-                    .frame(width: rightW, height: nh, alignment: .trailing).offset(x: rightX)
+                    .frame(width: rightW / e, height: nh / e, alignment: .trailing)
+                    .scaleEffect(e, anchor: .topLeading)
+                    .frame(width: rightW, height: nh, alignment: .topLeading).offset(x: rightX)
                     .opacity(1 - min(pk, 1))
             }
         }

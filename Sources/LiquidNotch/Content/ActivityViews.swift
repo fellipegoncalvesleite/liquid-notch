@@ -40,18 +40,23 @@ struct ActivityEarsLayer: View {
     // (No buttons in the ears: they never take a press from the island underneath.)
 
     var body: some View {
-        let cx = FrameModel.cx, nhw = frame.notchHalfWidth, nh = frame.notchHeight
+        let cx = FrameModel.cx, nhw = frame.notchHalfWidth, nh = frame.notchHeight, e = frame.earScale
         let leftX = frame.left + 12, rightX = cx + nhw + 8
         let leftW = max(cx - nhw - 8 - leftX, 0), rightW = max(frame.right - 12 - rightX, 0)
         ZStack(alignment: .topLeading) {
             if let a = director.shownActivity {
+                // Laid out at the design size, then scaled to the notch (`EarMetrics`; 1 in a real notch).
                 ActivityEars(instance: a, side: .left, director: director)
-                    .frame(width: leftW, height: nh, alignment: .leading)
+                    .frame(width: leftW / e, height: nh / e, alignment: .leading)
+                    .scaleEffect(e, anchor: .topLeading)
+                    .frame(width: leftW, height: nh, alignment: .topLeading)
                     .clipped()
                     .offset(x: leftX)
                     .id("l\(a.serial)")
                 ActivityEars(instance: a, side: .right, director: director)
-                    .frame(width: rightW, height: nh, alignment: .trailing)
+                    .frame(width: rightW / e, height: nh / e, alignment: .trailing)
+                    .scaleEffect(e, anchor: .topLeading)
+                    .frame(width: rightW, height: nh, alignment: .topLeading)
                     .clipped()
                     .offset(x: rightX)
                     .id("r\(a.serial)")
