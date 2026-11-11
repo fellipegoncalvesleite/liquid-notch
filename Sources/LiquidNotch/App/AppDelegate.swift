@@ -97,6 +97,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             item.state = surface?.bars.mode == mode ? .on : .off
         }
         menu.addItem(withTitle: "Music Bars", action: nil, keyEquivalent: "").submenu = bars
+        // Which screen, and real or virtual notch (11-11).
+        NotchMenu.shared.add(to: menu)
         menu.addItem(.separator())
         menu.addItem(withTitle: "Setup…", action: #selector(showSetup), keyEquivalent: "").target = self
         // AirPane (11-11): opens its site, or AirPane itself once it's here.
