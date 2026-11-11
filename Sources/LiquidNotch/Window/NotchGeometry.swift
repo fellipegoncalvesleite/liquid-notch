@@ -95,7 +95,8 @@ struct NotchGeometry: Equatable {
                                          notchMinX: s.frame.minX + left, notchMaxX: s.frame.maxX - right,
                                          notchHeight: s.safeTop, scale: s.scale, isVirtual: false))
         }
-        let mid = s.frame.midX
+        // On a whole point, like the panel's origin, so the drawing and the geometry agree on odd-width screens.
+        let mid = s.frame.midX.rounded()
         return (index, NotchGeometry(displayID: s.displayID, screenFrame: s.frame,
                                      notchMinX: mid - virtualWidth / 2, notchMaxX: mid + virtualWidth / 2,
                                      notchHeight: s.menuBarHeight(statusBarThickness: statusBarThickness),

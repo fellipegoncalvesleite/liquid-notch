@@ -83,4 +83,16 @@ final class NotchGeometryTests: XCTestCase {
         XCTAssertEqual(f.midX, g.notchCenterX)
         XCTAssertEqual(f.maxY, 900)
     }
+
+    /// The island is drawn at the panel's centre, and the panel's origin is a whole point: on an odd-width screen the
+    /// virtual notch must sit on that same point, or the hit test and the drawing disagree by half a point.
+    func testVirtualNotchOnAnOddWidthScreenSitsWhereThePanelDrawsIt() {
+        var s = air
+        s.frame.size.width = 1365
+        s.visibleFrame.size.width = 1365
+        let g = NotchGeometry.choose([s], placement: .main, mode: .auto)!.geometry
+        let f = g.panelFrame(size: CGSize(width: 760, height: 420))
+        XCTAssertEqual(f.midX, g.notchCenterX)
+        XCTAssertEqual(f.minX, f.minX.rounded())
+    }
 }

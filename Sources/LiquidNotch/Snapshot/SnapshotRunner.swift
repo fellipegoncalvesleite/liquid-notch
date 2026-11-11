@@ -31,8 +31,10 @@ enum SnapshotRunner {
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
 
         let geometry = NotchGeometry.current()?.1
-        let notchHalfWidth = Double((geometry?.notchWidth ?? 208) / 2)
-        let notchHeight = Double(geometry?.notchHeight ?? 37.5)
+        // LN_SNAP_NOTCH=185x24 draws another Mac's notch, e.g. an M1 Air's virtual one under its 24 pt menu bar.
+        let forced = ProcessInfo.processInfo.environment["LN_SNAP_NOTCH"]?.split(separator: "x").compactMap { Double($0) }
+        let notchHalfWidth = forced?.count == 2 ? forced![0] / 2 : Double((geometry?.notchWidth ?? 208) / 2)
+        let notchHeight = forced?.count == 2 ? forced![1] : Double(geometry?.notchHeight ?? 37.5)
         let tuning = Tuning()
 
         let renderer: LiquidRenderer
