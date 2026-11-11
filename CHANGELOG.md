@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.1
 
 - **Works on Macs without a notch.** On a MacBook Air or any Mac without a notch, Liquid Notch now draws its own island at the top of the screen, sized to fit the menu bar.
 - **Choose where the island appears.** Right-click the island and pick Show On › Built-in Display or Main Display. Notch › Always Virtual uses the drawn island even on a Mac with a notch.
