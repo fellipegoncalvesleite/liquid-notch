@@ -53,7 +53,7 @@ Every one of these is optional, and most are off until you turn them on in Setup
 
 ## Install
 
-**Download**: grab `Liquid-Notch-1.0.zip` from [Releases](../../releases), unzip it, and move **Liquid Notch** to Applications.
+**Download**: grab the latest `Liquid-Notch-<version>.zip` from [Releases](../../releases/latest), unzip it, and move **Liquid Notch** to Applications. From 1.1 on it keeps itself up to date.
 
 The app isn't notarized yet, so the first time macOS will say it can't check it. Either right-click the app › **Open** › **Open**, or run:
 
