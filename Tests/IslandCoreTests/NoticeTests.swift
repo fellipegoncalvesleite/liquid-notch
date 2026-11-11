@@ -47,4 +47,12 @@ final class NoticeTests: XCTestCase {
         j.apply(.hover)
         XCTAssertNotEqual(j.mode, .card)
     }
+
+    // AT3 (11-11): a banner from the app in front is skipped only when that app's window is on the island's display.
+    func testABannerFromTheFrontAppOnTheOtherDisplayComes() {
+        var c = DesktopContext(frontmostApp: "com.apple.mail")
+        XCTAssertEqual(NoticeArrival.of(n("a"), context: c, trayOpen: false), .skip)
+        c.frontOnIslandScreen = false
+        XCTAssertEqual(NoticeArrival.of(n("a"), context: c, trayOpen: false), .ears, "Mail on the other display, or minimized")
+    }
 }

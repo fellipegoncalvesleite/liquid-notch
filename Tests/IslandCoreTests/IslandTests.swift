@@ -496,4 +496,17 @@ final class IslandTests: XCTestCase {
         i.apply(.context(c))
         XCTAssertEqual(i.arrangement.ears, .media, "a buried player: another app in front")
     }
+
+    // AT1 (11-11, two displays): an activity leaves the island in its own app only while that app's window is on the
+    // island's display; on the other display, or minimized, it stays.
+    func testAnActivityLeavesOnlyForItsAppOnTheIslandsDisplay() {
+        var i = Island()
+        i.apply(.show(.call))
+        var c = DesktopContext(frontmostApp: BundleID.faceTime)
+        i.apply(.context(c))
+        XCTAssertFalse(i.arrangement.all.contains(.activity), "FaceTime here: the call leaves")
+        c.frontOnIslandScreen = false
+        i.apply(.context(c))
+        XCTAssertEqual(i.arrangement.ears, .activity, "FaceTime on the other display, or minimized: the call stays")
+    }
 }

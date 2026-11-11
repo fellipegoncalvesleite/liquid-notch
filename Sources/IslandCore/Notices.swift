@@ -60,10 +60,10 @@ public enum NoticeArrival: Equatable, Sendable {
     /// Nothing shows (macOS keeps it in its own Notification Center).
     case skip
 
-    /// Skipped when it's passive, from the app in front (that app shows it), presenting, in fullscreen, locked, while the
+    /// Skipped when it's passive, from the app you're at (that app shows it; on the other display it comes here), presenting, in fullscreen, locked, while the
     /// tray is open, or during a Focus unless it's time-sensitive or critical.
     public static func of(_ n: Notice, context c: DesktopContext, trayOpen: Bool) -> NoticeArrival {
-        if n.level == .passive || c.presenting || c.fullscreen || c.locked || trayOpen || c.frontmostApp == n.app { return .skip }
+        if n.level == .passive || c.presenting || c.fullscreen || c.locked || trayOpen || c.at(n.app) { return .skip }
         if c.focusOn == true && !n.level.urgent { return .skip }
         return .ears
     }

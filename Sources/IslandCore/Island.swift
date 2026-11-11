@@ -88,6 +88,13 @@ public struct DesktopContext: Equatable, Sendable {
         self.viewedSession = viewedSession
     }
 
+    /// You're at `app`: it's in front and its front window is mostly on the island's display (11-11). On the other
+    /// display, or minimized, you aren't. Everything that leaves the island because you're in its own app asks this.
+    public func at(_ app: String) -> Bool { frontmostApp == app && frontOnIslandScreen }
+
+    /// The app you're at shows this activity itself (`AppRules.hosts`).
+    public func hosts(_ id: ActivityID) -> Bool { at(frontmostApp) && AppRules.hosts(frontmostApp, id) }
+
     /// Sharing the screen or a presenting app in front: transients stay off, names and texts are redacted.
     public var presenting: Bool { sharing || AppRules.presenting.contains(frontmostApp) }
 }
@@ -422,7 +429,8 @@ public struct Island: Equatable, Sendable {
         case .context(let c):
             let wasPresenting = context.presenting
             context = c
-            agents.viewing = c.viewedSession
+            // Only while the app it's viewed in is at the island's display (11-11).
+            agents.viewing = c.at(c.frontmostApp) ? c.viewedSession : nil
             if context.presenting != wasPresenting, let a = activity {
                 if context.presenting && a.spec.tier == .transient {
                     end(a.serial)
@@ -551,9 +559,9 @@ public struct Island: Equatable, Sendable {
 
     /// `activity` is the best visible one: hidden ones, and ones whose own app is in front, rank last.
     private mutating func normalize() {
-        let all = ([activity] + background.map(Optional.some)).compactMap { $0 }, app = context.frontmostApp
+        let all = ([activity] + background.map(Optional.some)).compactMap { $0 }, c = context
         let rank = { (a: ActivityInstance) -> Int in
-            if a.hidden || (AppRules.hosts(app, a.id) && a.spec.tier != .alert) { return 9 }
+            if a.hidden || (c.hosts(a.id) && a.spec.tier != .alert) { return 9 }
             switch a.spec.tier { case .alert: return 0; case .transient: return 1; case .live: return 2; case .ongoing: return 3 }
         }
         let sorted = all.enumerated().sorted { (rank($0.element), $0.offset) < (rank($1.element), $1.offset) }.map(\.element)
@@ -606,7 +614,7 @@ public struct Island: Equatable, Sendable {
         let m = mediaOn && !inOwnPlace(mediaApp, mediaTitle) && !context.lockScreen
         let m2 = media2On && !inOwnPlace(media2App, media2Title) && !context.lockScreen
         let acts = ([activity] + background.map(Optional.some)).compactMap { $0 }
-            .filter { !(AppRules.hosts(context.frontmostApp, $0.id) && $0.spec.tier != .alert) }
+            .filter { !(context.hosts($0.id) && $0.spec.tier != .alert) }
         let tier = { (t: Tier) -> [Party] in
             acts.filter { $0.spec.tier == t }.map { $0.serial == activity?.serial ? .activity : .background($0.serial) }
         }
@@ -636,7 +644,7 @@ public struct Island: Equatable, Sendable {
     /// own tab (the window's title has the player's title in it; YouTube's tab reads "(1) <title> - YouTube"). Unknown
     /// tab: the app counts. With the player on another display, or minimized, the song stays (11-11).
     public func inOwnPlace(_ app: String, _ title: String) -> Bool {
-        guard context.frontmostApp == app, context.frontOnIslandScreen else { return false }
+        guard context.at(app) else { return false }
         guard AppRules.browsers.contains(app), let w = context.frontWindowTitle, !w.isEmpty else { return true }
         let t = title.trimmingCharacters(in: .whitespaces)
         guard !t.isEmpty else { return true }

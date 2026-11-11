@@ -126,4 +126,18 @@ final class AgentsTests: XCTestCase {
         i.apply(.context(DesktopContext(frontmostApp: "com.anthropic.claudefordesktop", viewedSession: "b")))
         XCTAssertEqual(i.agents.sessions(.claude).map(\.id), ["a"])
     }
+
+    // AT2 (11-11): the session you're looking at leaves the island only while the Claude app's window is on the
+    // island's display.
+    func testTheViewedSessionLeavesOnlyOnTheIslandsDisplay() {
+        var i = Island()
+        i.apply(.agent(hook("UserPromptSubmit", "c", host: "com.anthropic.claudefordesktop")))
+        i.apply(.agent(hook("PermissionRequest", "c", tool: "Bash", detail: "swift test")))
+        var c = DesktopContext(frontmostApp: "com.anthropic.claudefordesktop", viewedSession: "c")
+        i.apply(.context(c))
+        XCTAssertFalse(i.arrangement.all.contains(.agents(.claude)), "looking at it here: it leaves")
+        c.frontOnIslandScreen = false
+        i.apply(.context(c))
+        XCTAssertEqual(i.arrangement.ears, .agents(.claude), "Claude on the other display: it asks from the notch")
+    }
 }
