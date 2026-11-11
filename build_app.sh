@@ -8,8 +8,11 @@ set -euo pipefail
 cd "$(dirname "$0")"
 CONFIG=${CONFIG:-release}
 
-swift build -c "$CONFIG"
-BIN=$(swift build -c "$CONFIG" --show-bin-path)/LiquidNotch
+# Release builds are universal (Apple silicon + Intel); debug builds only this Mac's architecture, for speed.
+ARCH_FLAGS=()
+[[ $CONFIG == release ]] && ARCH_FLAGS=(--arch arm64 --arch x86_64)
+swift build -c "$CONFIG" "${ARCH_FLAGS[@]}"
+BIN=$(swift build -c "$CONFIG" "${ARCH_FLAGS[@]}" --show-bin-path)/LiquidNotch
 
 APP="dist/Liquid Notch.app"
 rm -rf "$APP"
