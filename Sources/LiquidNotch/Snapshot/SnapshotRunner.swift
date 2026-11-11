@@ -30,7 +30,7 @@ enum SnapshotRunner {
         let dir = URL(fileURLWithPath: outputDirectory, isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
 
-        let geometry = NotchGeometry.builtIn()?.1
+        let geometry = NotchGeometry.current()?.1
         let notchHalfWidth = Double((geometry?.notchWidth ?? 208) / 2)
         let notchHeight = Double(geometry?.notchHeight ?? 37.5)
         let tuning = Tuning()

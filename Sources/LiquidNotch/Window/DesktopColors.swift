@@ -146,7 +146,7 @@ final class DesktopColors {
         guard rendering != key else { return }
         rendering = key
         let box = Box(cg)
-        let size = (NotchGeometry.builtIn()?.0 ?? NSScreen.main)?.frame.size ?? CGSize(width: 1710, height: 1112)
+        let size = (NotchGeometry.current()?.0 ?? NSScreen.main)?.frame.size ?? CGSize(width: 1710, height: 1112)
         let back = SongBackground.image(key: key, art: cg, size: size)
         Task.detached(priority: .utility) {
             let palette = Self.stripPalette(box.image)

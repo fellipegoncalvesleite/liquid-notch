@@ -178,7 +178,7 @@ final class ContextMonitor {
                                                                menuBarHeight: s.menuBarHeight)
         // The Space says it when it can be read (a fullscreen Space, or a window over the whole screen, menu bar too);
         // the window list's guess, latched while the bar slides down under the pointer, only when it can't.
-        let display = NotchGeometry.builtIn()?.0.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID
+        let display = NotchGeometry.current()?.0.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID
         let space = ContextSensing.activeSpaceType(display: display)
         let fullscreen: Bool
         if let space {

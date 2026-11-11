@@ -375,7 +375,7 @@ final class NotchSurfaceController {
             if locked {
                 lockLeave?.cancel(); lockLeave = nil
                 LockSpace.shared.join(panel)
-                if let screen = NotchGeometry.builtIn()?.0 { LockWallpaper.shared.locked(on: screen) }
+                if let screen = NotchGeometry.current()?.0 { LockWallpaper.shared.locked(on: screen) }
                 director.setLockTouched(false)
                 let t = Timer(timeInterval: 0.25, repeats: true) { [weak self] _ in
                     MainActor.assumeIsolated {
@@ -398,12 +398,12 @@ final class NotchSurfaceController {
         guard locked else {
             lockArtSkipLogged = false
             // The art is drawn ahead while unlocked, so locking shows it at once.
-            if island.mediaOn, director.mediaIsMusic, let screen = NotchGeometry.builtIn()?.0 {
+            if island.mediaOn, director.mediaIsMusic, let screen = NotchGeometry.current()?.0 {
                 LockWallpaper.shared.prepare(key: director.media.artKey, art: director.media.artwork?.image, on: screen)
             }
             return
         }
-        if island.mediaOn && !lockCard.shown, let screen = NotchGeometry.builtIn()?.0 {
+        if island.mediaOn && !lockCard.shown, let screen = NotchGeometry.current()?.0 {
             lockCard.show(on: screen)
         } else if !island.mediaOn && lockCard.shown {
             lockCard.hide()
@@ -513,7 +513,7 @@ final class NotchSurfaceController {
     // MARK: - Geometry
 
     private func readWallpaperTint() {
-        guard let screen = NotchGeometry.builtIn()?.0, let url = NSWorkspace.shared.desktopImageURL(for: screen) else { return }
+        guard let screen = NotchGeometry.current()?.0, let url = NSWorkspace.shared.desktopImageURL(for: screen) else { return }
         Task.detached(priority: .utility) {
             let tint = WallpaperTint.tint(url: url)
             await MainActor.run { [weak self] in
@@ -525,8 +525,8 @@ final class NotchSurfaceController {
     }
 
     private func relayout() {
-        guard let (_, g) = NotchGeometry.builtIn() else {
-            // No notched screen: lid closed, or only an external display. v1 draws nothing.
+        guard let (_, g) = NotchGeometry.current() else {
+            // No screen at all (every display asleep or gone).
             geometry = nil
             panel.orderOut(nil)
             return
@@ -722,10 +722,12 @@ final class NotchSurfaceController {
                 MainActor.assumeIsolated { self?.readWallpaperTint() }
             })
         }
-        observers.append(nc.addObserver(forName: NSApplication.didChangeScreenParametersNotification,
-                                        object: nil, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { self?.relayout() }
-        })
+        // Displays connected or gone, a resolution change, the lid closed, or the Show on / Notch settings.
+        for name in [NSApplication.didChangeScreenParametersNotification, NotchGeometry.settingsChanged] {
+            observers.append(nc.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.relayout() }
+            })
+        }
         observers.append(wc.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.relayout() }
         })

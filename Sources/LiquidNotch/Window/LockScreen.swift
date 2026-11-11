@@ -273,7 +273,7 @@ struct LockMusicCard: View {
         // The song's art is drawn ahead, and follows a skip while it's the wallpaper (here, not on the cover: the cover
         // isn't on the card then).
         .task(id: media.artKey) {
-            if let screen = NotchGeometry.builtIn()?.0 {
+            if let screen = NotchGeometry.current()?.0 {
                 LockWallpaper.shared.song(key: media.artKey, art: media.artwork?.image, on: screen)
             }
         }
@@ -292,7 +292,7 @@ struct LockMusicCard: View {
             .contentShape(Rectangle())
             // Where the flying cover starts and lands, in screen points (the card's window is placed by `frame(on:)`).
             .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { r in
-                guard let screen = NotchGeometry.builtIn()?.0 else { return }
+                guard let screen = NotchGeometry.current()?.0 else { return }
                 let w = LockCardController.frame(on: screen.frame)
                 LockWallpaper.shared.cardCover = CGRect(x: w.minX + r.minX, y: w.maxY - r.maxY, width: r.width, height: r.height)
             }
