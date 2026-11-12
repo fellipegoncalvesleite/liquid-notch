@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.1.2
+
+- **Music bars in a Jam.** The bars follow the music again after a Spotify Jam or a song playing on another device. Before, a moment of silence could switch the real bars off for every song after it.
+- **Shuffle.** Both players have a shuffle button, on the left of the controls.
+- **Your day.** Click an event's card to see your whole day: what's on now with its time left, what's next, and every event today.
+- **Overlapping events.** When two events overlap, the island shows the one that started last, so lunch shows up even in the middle of a long class.
+- **Choose your calendars.** Right-click › Calendars lets you hide calendars you don't want in the island.
+- **A peek at the event.** Hovering an event's ball shows its title, the time left and how far along it is.
+- **Fixes.** Allowing Calendar in Setup shows your events right away, and dragging the volume up from mute unmutes. Thanks to saikiran9185 for these and for the ideas behind shuffle and the calendar.
+
 ## 1.1.1
 
 - **No more repeated permission prompts.** If the music bars can't hear system audio, Liquid Notch stops asking again with every song. You can still turn it on from Setup.
