@@ -9,7 +9,7 @@ import QuartzCore
 ///
 /// Quiet music keeps real levels (the bars keep a small minimum height). The bars fall back to the animation only when
 /// the tap can't start, or when it delivers nothing but exact zeros for 3 s from the start (what a denied permission
-/// delivers: there's no public way to ask). After a failure it tries again the next time the bars are wanted.
+/// delivers: there's no public way to ask). After silent capture, retry only when the user explicitly checks permission.
 @MainActor @Observable
 final class AudioBars {
     enum Mode: String, CaseIterable { case realAudio, animated }
@@ -44,10 +44,15 @@ final class AudioBars {
     nonisolated static let modeKey = "bars.mode"
     /// The tap has delivered real audio at least once (Setup shows the permission as allowed).
     nonisolated static let heardKey = "bars.heard"
+    /// A silent tap usually means capture was denied. Do not trigger another system prompt on every playback;
+    /// Setup's explicit Allow action is the only retry after this point.
+    nonisolated static let retrySuppressedKey = "bars.retrySuppressed"
+    nonisolated static let permissionCheckCompleted = Notification.Name("LiquidNotchAudioPermissionCheckCompleted")
     private static let log = Logger(subsystem: "com.fellipe.liquidnotch", category: "audio")
 
     @ObservationIgnored private var wanted = false
-    @ObservationIgnored private var failedThisTime = false
+    @ObservationIgnored private var failedThisTime: Bool
+    @ObservationIgnored private var permissionObserver: NSObjectProtocol?
     @ObservationIgnored private var source: AudioSource?
     @ObservationIgnored private var analyzer: AudioAnalyzer?
     @ObservationIgnored private var timer: DispatchSourceTimer?
@@ -57,15 +62,24 @@ final class AudioBars {
 
     init() {
         mode = Mode(rawValue: UserDefaults.standard.string(forKey: Self.modeKey) ?? "") ?? .realAudio
+        failedThisTime = UserDefaults.standard.bool(forKey: Self.retrySuppressedKey)
         let f = UserDefaults.standard.double(forKey: "bars.fps")
         fps = f == 60 ? 60 : 30
+        permissionObserver = NotificationCenter.default.addObserver(forName: Self.permissionCheckCompleted, object: nil, queue: .main) { [weak self] note in
+            guard let self, let heard = note.userInfo?["heard"] as? Bool else { return }
+            MainActor.assumeIsolated {
+                self.failedThisTime = !heard
+                UserDefaults.standard.set(!heard, forKey: Self.retrySuppressedKey)
+                if heard { self.update(wanted: self.wanted) }
+            }
+        }
     }
 
     /// Whether the bars should follow the audio now: a song plays and the bars are on the island.
     func update(wanted now: Bool) {
         let rising = now && !wanted
         wanted = now
-        if rising { failedThisTime = false }
+        if rising && !UserDefaults.standard.bool(forKey: Self.retrySuppressedKey) { failedThisTime = false }
         guard mode == .realAudio else { return }
         if now {
             stopLater?.cancel(); stopLater = nil
@@ -119,15 +133,20 @@ final class AudioBars {
     nonisolated static func askPermission() {
         DispatchQueue.global(qos: .userInitiated).async {
             let tap = SystemAudioTap()
-            guard (try? tap.start()) != nil else { return }
+            guard (try? tap.start()) != nil else {
+                NotificationCenter.default.post(name: permissionCheckCompleted, object: nil, userInfo: ["heard": false])
+                return
+            }
             Thread.sleep(forTimeInterval: 4)
             let out = UnsafeMutablePointer<Float>.allocate(capacity: 4096)
             defer { out.deallocate() }
             let n = tap.ring.latest(into: out, count: 4096)
-            if UnsafeBufferPointer(start: out, count: n).contains(where: { $0 != 0 }) {
+            let heard = UnsafeBufferPointer(start: out, count: n).contains(where: { $0 != 0 })
+            if heard {
                 UserDefaults.standard.set(true, forKey: heardKey)
             }
             tap.stop()
+            NotificationCenter.default.post(name: permissionCheckCompleted, object: nil, userInfo: ["heard": heard])
         }
     }
 
@@ -152,6 +171,8 @@ final class AudioBars {
         }
         if state != .live {
             state = .live
+            failedThisTime = false
+            UserDefaults.standard.set(false, forKey: Self.retrySuppressedKey)
             UserDefaults.standard.set(true, forKey: Self.heardKey)
             Self.log.notice("audio: live")
         }
@@ -162,6 +183,9 @@ final class AudioBars {
     private func fail(_ why: String) {
         Self.log.error("audio: falling back to the animation: \(why, privacy: .public)")
         failedThisTime = true
+        if why.contains("only silence") {
+            UserDefaults.standard.set(true, forKey: Self.retrySuppressedKey)
+        }
         stopNow()
         state = .failed(why)
     }

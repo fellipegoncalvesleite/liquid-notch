@@ -28,6 +28,32 @@ final class AudioBarsTests: XCTestCase {
 
     private var now = 0.0
 
+    override func setUp() {
+        super.setUp()
+        UserDefaults.standard.removeObject(forKey: AudioBars.retrySuppressedKey)
+    }
+
+    override func tearDown() {
+        UserDefaults.standard.removeObject(forKey: AudioBars.retrySuppressedKey)
+        super.tearDown()
+    }
+
+    func testSilentCaptureDoesNotRetryForPlaybackOrRelaunchUntilExplicitPermissionCheck() {
+        let src = FakeSource(), s = ManualScheduler(), b = bars(src, s)
+        b.update(wanted: true)
+        run(b, src, seconds: 4, amplitude: 0)
+        b.update(wanted: false)
+        b.update(wanted: true)
+        XCTAssertEqual(src.starts, 1)
+        let relaunched = bars(src, s)
+        relaunched.update(wanted: true)
+        XCTAssertEqual(src.starts, 1)
+        NotificationCenter.default.post(name: AudioBars.permissionCheckCompleted, object: nil, userInfo: ["heard": true])
+        XCTAssertGreaterThan(src.starts, 1, "an explicit successful permission check releases the capture block")
+        b.shutdown()
+        relaunched.shutdown()
+    }
+
     private func bars(_ source: FakeSource, _ s: ManualScheduler) -> AudioBars {
         UserDefaults.standard.removeObject(forKey: AudioBars.modeKey)
         let b = AudioBars()
