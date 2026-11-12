@@ -10,6 +10,8 @@
 - **Overlapping events.** The event card shows the one that started last or is about to start, so lunch at 12:30 shows even while a 9:30–13:30 class runs, with "+N more now" and the event's calendar.
 - **Choose your calendars.** Right-click › Calendars lists every calendar by account with its colour; untick one and its events leave the card, the ball, Today and the start alerts (new calendars show by default; Show All resets).
 - **Event Start Alerts** (right-click menu, off by default): a moment in the notch as each event starts.
+- **Your day, large.** Click the event card and your day opens at the lyrics player's size: what's on now on the left (time left large, a line bar, what's next) and the day as a timeline on the right, scrolled to now. Back shrinks it to the tools.
+- **Event ears like the brightness HUD.** The ring and the time left on the left, a line progress bar on the right; hovering the event's ball shows the same strip with its title.
 - **A scoreboard for events.** The event card shows the time left as a big figure, the event's progress as a bar (like a match's), and its calendar or who's in it.
 - **The event ball counts down.** Beside the music, an event's ball is a ring: orange toward the start, then the calendar's colour emptying as it runs, red in its last 5 minutes; the ear and card say the time left.
 - **Calendar access that takes.** Setup's Allow asked through a separate EventKit store, so the event watcher (made before the grant) kept showing nothing until its next boundary. Setup now asks through the watcher's own store, which resets and reads on the answer and whenever the app becomes active; when access hasn't been decided, the watcher asks once at launch.

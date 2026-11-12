@@ -49,6 +49,8 @@ final class TrayModel {
     @ObservationIgnored var listShortcuts: (() -> Void)?
     /// Presses a Focus mode in Control Center (pressing the one that's on turns it off).
     @ObservationIgnored var toggleFocus: ((FocusMode) -> Void)?
+    /// A page was chosen (the large day shrinks when its page is left).
+    @ObservationIgnored var onGo: ((Page) -> Void)?
     @ObservationIgnored private var clipSerial = 0
     @ObservationIgnored private var doneClear: Task<Void, Never>?
 
@@ -64,6 +66,7 @@ final class TrayModel {
 
     func go(_ p: Page) {
         page = p
+        onGo?(p)
         done = nil
         if p == .shortcuts { listShortcuts?() }
     }

@@ -592,7 +592,9 @@ struct BallPeekLayer: View {
                 let card = Island.peekCard(party)
                 CardPlacement(frame: frame, card: card) {
                     Group {
-                        if party == .media { mediaRow } else { row(party) }
+                        if party == .media { mediaRow }
+                        else if let a = director.island.instance(party), a.id == .meeting { meetingRow(a) }
+                        else { row(party) }
                     }
                     .frame(width: card.width, height: card.height)
                     .foregroundStyle(.white)
@@ -600,6 +602,24 @@ struct BallPeekLayer: View {
             }
         }
         .onChange(of: party) { _, p in if p != nil { last = p } }
+    }
+
+    /// An event's ball peeks as the ears show it: the ring, the title over the time left, and a line bar.
+    private func meetingRow(_ a: ActivityInstance) -> some View {
+        let m = director.meetingFor(a)
+        let state = EventRing.State(meeting: m, now: director.date())
+        return HStack(spacing: 10) {
+            EventRing(meeting: m, now: director.date(), size: 28)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(director.island.context.presenting ? "Event" : m.title).font(.system(size: 13, weight: .semibold)).lineLimit(1)
+                Text(state.figure + (state.started ? " left" : " to start"))
+                    .font(.system(size: 12).monospacedDigit()).foregroundStyle(state.textColor.opacity(0.85)).lineLimit(1)
+            }
+            Spacer(minLength: 6)
+            LineBar(progress: state.started ? state.elapsed : state.progress, tint: state.started ? state.color : .white.opacity(0.6))
+                .frame(width: 64, height: 6)
+        }
+        .padding(.horizontal, 17)
     }
 
     private func row(_ party: Party) -> some View {

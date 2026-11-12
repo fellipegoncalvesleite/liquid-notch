@@ -158,13 +158,18 @@ struct ActivityEars: View {
             case (.recording, .right):
                 Text(clockText(s.recordSeconds)).font(IslandType.ear.monospacedDigit()).entrance(side, 0)
             case (.meeting, .left):
-                EventRing(meeting: director.meetingFor(instance), now: director.date()).entrance(side, 0)
-            case (.meeting, .right):
-                // Before it starts, the time to the start; while it runs, the time left (red in the last 5 minutes).
+                // The ring and the time left (or to the start), as the brightness HUD puts its icon and level.
                 let m = director.meetingFor(instance)
                 let state = EventRing.State(meeting: m, now: director.date())
-                Text(state.earText).font(IslandType.ear.monospacedDigit())
-                    .foregroundStyle(state.textColor).entrance(side, 0)
+                EventRing(meeting: m, now: director.date()).entrance(side, 0)
+                Text(state.figure).font(IslandType.ear.monospacedDigit())
+                    .foregroundStyle(state.textColor).lineLimit(1).fixedSize().entrance(side, 1)
+            case (.meeting, .right):
+                // How far the event has gone, as a line bar (before it starts, the bar fills toward the start).
+                let m = director.meetingFor(instance)
+                let state = EventRing.State(meeting: m, now: director.date())
+                LineBar(progress: state.started ? state.elapsed : state.progress, tint: state.started ? state.color : .white.opacity(0.6))
+                    .frame(width: 56, height: 6).entrance(side, 0)
             case (.download, .left):
                 DownloadRing(progress: director.transferFor(instance).fraction).entrance(side, 0)
             case (.download, .right):
@@ -593,6 +598,10 @@ private struct MeetingCard: View {
             .rise(2)
         }
         .frame(maxHeight: .infinity)
+        // A click anywhere but Join opens your day, large.
+        .contentShape(Rectangle())
+        .onTapGesture { director.openDay() }
+        .help("Open your day")
     }
 }
 

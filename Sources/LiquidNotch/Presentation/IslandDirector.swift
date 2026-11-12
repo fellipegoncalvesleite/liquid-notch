@@ -1607,6 +1607,20 @@ final class IslandDirector {
     }
 
     /// Opens the tray at a page: the empty notch's tools, or the player's card with them. Not over an activity's ears.
+    /// Your day, large (a click on the event card or its ball's peek): the Today page at the lyrics player's size.
+    func openDay() {
+        guard forcedMode == nil else { return }
+        hoverOff?.cancel(); hoverOff = nil
+        let showing = groups.tray
+        tray.nextPage = .today
+        send(.openDay)
+        if showing || groups.tray { tray.go(.today) }
+        tray.onGo = { [weak self] page in
+            guard let self, page != .today, island.dayLarge else { return }
+            send(.closeDay)
+        }
+    }
+
     /// The tools on their own, in the player's place (the scroll's second step, the player's Tools button).
     func openToolsOnly() {
         guard forcedMode == nil else { return }

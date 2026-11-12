@@ -221,6 +221,10 @@ public enum IslandEvent: Sendable, Equatable {
     case openToolsOnly
     /// From the tools back to the player (a scroll up).
     case closeTools
+    /// Your day, large (a click on the event card): the tools on their own at the lyrics player's size, at Today.
+    case openDay
+    /// The day's page left (Back): the tools go back to their own size.
+    case closeDay
     /// Double-click on the music (owner, 11-07): the player grows into the focused view with the lyrics.
     case focusMedia
     case close
@@ -284,6 +288,8 @@ public struct Island: Equatable, Sendable {
     public private(set) var playerTools = false
     /// The tools fill the card on their own (`openToolsOnly`): the player is hidden while they show.
     public private(set) var toolsOnly = false
+    /// The tools are showing your day at the large size (`openDay`).
+    public private(set) var dayLarge = false
     /// The tray is open over whatever holds the ears (an activity, Claude or Codex), which waits in a ball meanwhile: the
     /// card is the tray's (sim `notesOver`).
     public private(set) var trayOver = false
@@ -410,6 +416,12 @@ public struct Island: Equatable, Sendable {
         case .openToolsOnly:
             apply(.openTray)
             toolsOnly = playerTools
+        case .openDay:
+            if !opened || cardOwner != .media || trayShows == false { apply(.openTray) }
+            if playerTools { toolsOnly = true }
+            dayLarge = trayShows
+        case .closeDay:
+            dayLarge = false
         case .closeTools:
             guard opened, playerTools || trayOpen else { break }
             if playerTools { playerTools = false; toolsOnly = false } else { apply(.close) }
@@ -471,6 +483,7 @@ public struct Island: Equatable, Sendable {
         }
         if playerTools && (!opened || cardOwner != .media || !mediaOn) { playerTools = false }
         if !playerTools { toolsOnly = false }
+        if !trayShows { dayLarge = false }
         if mediaFocus && (!opened || !(cardOwner == .media || cardOwner == .media2 && media2On) || !mediaOn) { mediaFocus = false }
         if !mediaFocus { focusVideo = false }
         if !opened { questionOnly = false; askOpen = nil }
@@ -795,6 +808,7 @@ public struct Island: Equatable, Sendable {
         }
         if let a = instance(own) { return a.spec.card }
         if mediaOn && mediaFocus && (own == .media || own == .media2) { return focusVideo ? Self.videoCard : Self.focusCard }
+        if trayShows && dayLarge { return Self.dayCard }
         var p = player
         if trayShows, let h = trayHeight { p.height = max(p.height, h) }
         guard mediaOn, playerTools else { return p }
@@ -808,6 +822,8 @@ public struct Island: Equatable, Sendable {
 
     /// The focused player: the cover large on the left, the title and the synced lyrics on the right, the controls under.
     public static let focusCard = CardSize(width: 620, height: 318, radius: 40)
+    /// Your day, large: the lyrics player's size.
+    public static let dayCard = focusCard
     /// Watching a video in the island (owner, 11-11): 16:9 at 512 × 288 inside 16 pt margins, a 36 pt title row; it
     /// fits under the notch in the island's 420 pt window (608 × 342 ran past it, "a bit cut off"). Bigger: picture in
     /// picture.

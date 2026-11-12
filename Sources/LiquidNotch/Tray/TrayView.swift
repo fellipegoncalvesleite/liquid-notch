@@ -223,7 +223,9 @@ private struct TodayPage: View {
         let timed = director.agenda.filter { !$0.allDay }
         Page(tray: tray, title: now.formatted(.dateTime.weekday(.wide).day().month()),
              action: (label: "Calendar", run: { NSWorkspace.shared.open(URL(string: "ical://")!) })) {
-            if director.agenda.isEmpty {
+            if director.island.dayLarge && !director.agenda.isEmpty {
+                DayLarge(director: director, now: now)
+            } else if director.agenda.isEmpty {
                 Text(EKAccess.granted ? "Nothing on today" : "Allow Calendar in Setup to see your day")
                     .font(.system(size: 13)).foregroundStyle(.white.opacity(0.5))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -254,6 +256,122 @@ private struct TodayPage: View {
                     }
                 }
             }
+        }
+    }
+}
+
+/// Your day at the lyrics player's size: what's on now as a hero on the left (the ring, the time left large, a line
+/// bar for how far it has gone, what's next), and the day as a timeline on the right, scrolled to now.
+private struct DayLarge: View {
+    let director: IslandDirector
+    let now: Date
+
+    var body: some View {
+        let timed = director.agenda.filter { !$0.allDay }
+        let current = timed.last { $0.isNow(now) }
+        let next = timed.first { $0.start > now }
+        HStack(alignment: .top, spacing: 18) {
+            hero(current, next: next)
+                .frame(width: 236)
+            Rectangle().fill(.white.opacity(0.1)).frame(width: 1).padding(.vertical, 2)
+            timeline(timed)
+        }
+        .padding(.top, 6)
+    }
+
+    @ViewBuilder private func hero(_ e: AgendaItem?, next: AgendaItem?) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            if let e {
+                let total = max(e.end.timeIntervalSince(e.start), 60)
+                let gone = min(max(now.timeIntervalSince(e.start) / total, 0), 1)
+                let left = Int((e.end.timeIntervalSince(now) / 60).rounded(.up))
+                let tint = left <= 5 ? IslandColor.red : Color(hex: e.colorHex)
+                Text("NOW").font(.system(size: 10, weight: .bold)).tracking(0.6).foregroundStyle(tint)
+                Text(e.title).font(.system(size: 17, weight: .semibold)).lineLimit(2).padding(.top, 4)
+                Text("\(e.start.formatted(date: .omitted, time: .shortened)) – \(e.end.formatted(date: .omitted, time: .shortened))")
+                    .font(.system(size: 12).monospacedDigit()).foregroundStyle(.white.opacity(0.55)).padding(.top, 2)
+                Spacer(minLength: 10)
+                HStack(alignment: .firstTextBaseline, spacing: 5) {
+                    Text(left >= 60 ? "\(left / 60)h \(left % 60)m" : "\(left)m")
+                        .font(.system(size: 34, weight: .semibold).monospacedDigit())
+                        .foregroundStyle(left <= 5 ? IslandColor.red : .white)
+                        .contentTransition(.numericText())
+                    Text("left").font(.system(size: 13)).foregroundStyle(.white.opacity(0.5))
+                }
+                LineBar(progress: gone, tint: tint).frame(height: 6).padding(.top, 8)
+                HStack {
+                    Text(e.calendar).lineLimit(1)
+                    Spacer(minLength: 6)
+                    Text("\(Int((gone * 100).rounded()))%").monospacedDigit()
+                }
+                .font(.system(size: 11)).foregroundStyle(.white.opacity(0.45)).padding(.top, 6)
+            } else {
+                Text("FREE").font(.system(size: 10, weight: .bold)).tracking(0.6).foregroundStyle(IslandColor.green)
+                Text("Nothing on right now").font(.system(size: 17, weight: .semibold)).padding(.top, 4)
+                Spacer(minLength: 10)
+            }
+            if let next {
+                let mins = Int((next.start.timeIntervalSince(now) / 60).rounded(.up))
+                HStack(spacing: 8) {
+                    RoundedRectangle(cornerRadius: 1.5).fill(Color(hex: next.colorHex)).frame(width: 3, height: 28)
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text("Next · " + (mins >= 60 ? "in \(mins / 60)h \(mins % 60)m" : "in \(mins) min"))
+                            .font(.system(size: 10, weight: .semibold)).foregroundStyle(.white.opacity(0.5))
+                        Text(next.title).font(.system(size: 12, weight: .medium)).lineLimit(1)
+                    }
+                }
+                .padding(.top, 12)
+            }
+        }
+        .frame(maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    private func timeline(_ timed: [AgendaItem]) -> some View {
+        ScrollViewReader { proxy in
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 2) {
+                    ForEach(timed) { e in
+                        let on = e.isNow(now), past = e.end <= now
+                        HStack(alignment: .center, spacing: 10) {
+                            Text(e.start.formatted(date: .omitted, time: .shortened))
+                                .font(.system(size: 11, weight: on ? .semibold : .regular).monospacedDigit())
+                                .foregroundStyle(.white.opacity(on ? 0.9 : 0.45))
+                                .frame(width: 58, alignment: .trailing)
+                            RoundedRectangle(cornerRadius: 1.5).fill(Color(hex: e.colorHex)).frame(width: 3, height: 32)
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(e.title).font(.system(size: 13, weight: on ? .semibold : .regular)).lineLimit(1)
+                                Text(e.calendar.isEmpty ? e.end.formatted(date: .omitted, time: .shortened)
+                                     : "until \(e.end.formatted(date: .omitted, time: .shortened)) · \(e.calendar)")
+                                    .font(.system(size: 11).monospacedDigit()).foregroundStyle(.white.opacity(0.5)).lineLimit(1)
+                            }
+                            Spacer(minLength: 0)
+                        }
+                        .padding(.vertical, 5).padding(.horizontal, 6)
+                        .background(RoundedRectangle(cornerRadius: 10).fill(.white.opacity(on ? 0.1 : 0)))
+                        .opacity(past ? 0.4 : 1)
+                        .id(e.id)
+                    }
+                }
+            }
+            .onAppear {
+                let target = timed.first { $0.isNow(now) } ?? timed.first { $0.start > now }
+                if let target { proxy.scrollTo(target.id, anchor: .top) }
+            }
+        }
+    }
+}
+
+/// A line progress bar, as the brightness HUD's: a dim track with the filled part in the tint.
+struct LineBar: View {
+    let progress: Double
+    var tint: Color = .white
+
+    var body: some View {
+        GeometryReader { geo in
+            Capsule().fill(.white.opacity(0.16))
+                .overlay(alignment: .leading) {
+                    Capsule().fill(tint).frame(width: max(geo.size.height, geo.size.width * min(max(progress, 0), 1)))
+                }
         }
     }
 }
