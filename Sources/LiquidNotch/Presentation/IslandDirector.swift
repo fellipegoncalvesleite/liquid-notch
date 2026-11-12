@@ -2430,22 +2430,26 @@ final class IslandDirector {
         let down = scrollAccum > 0
         scrollAccum = 0
         scrollSpent = true
-        if down { scrollDeeper(hit) } else if island.trayShows && island.toolsOnly { send(.closeTools) }
-        else if island.opened { send(.close) }
+        if down { scrollDeeper(hit) } else if island.opened { send(.close) }
         return true
     }
 
+    /// One scroll down goes straight to the main menu (hovering already shows the music): the tools on their own, in
+    /// the player's place. On a ball, its card (an event's scoreboard, a session's chat).
     private func scrollDeeper(_ hit: HitRegion?) {
-        if !island.opened {
-            let party = pickCard(hit)
-            if party == .media, island.mediaOn { open(.media) }
-            else if island.arrangement.ears == nil || !island.mediaOn { openTray() }
-            else { open(party) }
+        if island.opened {
+            if island.mediaFocus || island.trayShows { return }
+            if island.cardOwner == .media { openToolsOnly() }
             return
         }
-        if island.mediaFocus { return }
-        // The second step: the main menu on its own, in the player's place.
-        if !island.trayShows { openToolsOnly() }
+        if case .bubble = hit { open(pickCard(hit)); return }
+        if island.mediaOn, island.arrangement.ears == .media {
+            hoverOff?.cancel(); hoverOff = nil
+            send(.open(.media))
+            openToolsOnly()
+        } else {
+            openTray()
+        }
     }
 
     func pointerDragged(to p: SIMD2<Double>) {
