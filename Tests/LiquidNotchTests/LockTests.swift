@@ -64,12 +64,14 @@ final class LockTests: XCTestCase {
         art.lockFocus(); NSColor.systemPink.setFill(); NSRect(x: 0, y: 0, width: 300, height: 300).fill(); art.unlockFocus()
         let cg = try XCTUnwrap(art.cgImage(forProposedRect: nil, context: nil, hints: nil))
         let folder = FileManager.default.temporaryDirectory.appendingPathComponent("ln-lock4-\(UUID().uuidString)")
-        let p = try XCTUnwrap(LockWallpaper.parts(key: "k", art: cg, size: CGSize(width: 1710, height: 1112), folder: folder))
+        // The owner's lock screen hides the account photo (the card sits low); not whatever the test Mac is set to.
+        let p = try XCTUnwrap(LockWallpaper.parts(key: "k", art: cg, size: CGSize(width: 1710, height: 1112), folder: folder,
+                                                  avatarHidden: true))
         XCTAssertEqual(p.back.width, 3420)
         XCTAssertEqual(p.back.height, 2224)
         // Centred between the clock (its digits end 265 pt from the top) and the card, and clear of the card with its
         // lyrics open (the owner's screenshots, 11-07: under the clock and into the card; then closer to the clock).
-        let card = LockCardController.frame(on: NSRect(x: 0, y: 0, width: 1710, height: 1112))
+        let card = LockCardController.frame(on: NSRect(x: 0, y: 0, width: 1710, height: 1112), avatarHidden: true)
         // The card as it is while the art is the wallpaper: no cover of its own, shorter (owner, 11-07).
         let cardTop = card.minY + LockCardController.bare.height
         XCTAssertEqual((1112 - p.coverRect.maxY) - 265, p.coverRect.minY - cardTop, accuracy: 1, "as far from the clock as from the card")
@@ -81,6 +83,18 @@ final class LockTests: XCTestCase {
         XCTAssertEqual(Double(p.sprite.width) / 2, p.spriteRect.width, accuracy: 1)
         XCTAssertTrue(FileManager.default.fileExists(atPath: p.file.path))
         try? FileManager.default.removeItem(at: folder)
+    }
+
+    // LOCK4b: with the account photo showing, the card goes up; the cover still sits between the clock and the card,
+    // centred and clear of the lyrics (smaller, as there's less room).
+    func testLOCK4ArtWithTheAvatarShowing() {
+        let size = CGSize(width: 1710, height: 1112)
+        let cover = LockWallpaper.coverRect(in: size, avatarHidden: false)
+        let card = LockCardController.frame(on: NSRect(origin: .zero, size: size), avatarHidden: false)
+        XCTAssertGreaterThan(cover.height, 150)
+        XCTAssertEqual(cover.midX, 855, accuracy: 0.5)
+        XCTAssertGreaterThanOrEqual(cover.minY - (card.minY + LockCardController.bareLyrics.height), 8, "clear of the lyrics")
+        XCTAssertLessThanOrEqual(cover.maxY, size.height * (1 - LockWallpaper.clockBottom), "under the clock")
     }
 
 

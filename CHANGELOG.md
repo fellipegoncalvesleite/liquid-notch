@@ -9,6 +9,8 @@
 - **Today in the tools.** A Today tool (labelled with your next event's time) opens the day from every calendar: all-day events on top, then each event with what's on now highlighted and its time left.
 - **Overlapping events.** The event card shows the one that started last or is about to start, so lunch at 12:30 shows even while a 9:30–13:30 class runs, with "+N more now" and the event's calendar.
 - **Event Start Alerts** (right-click menu, off by default): a moment in the notch as each event starts.
+- **The event ball counts down.** Beside the music, an event's ball is a ring: orange toward the start, then the calendar's colour emptying as it runs, red in its last 5 minutes; the ear and card say the time left.
+- **Fixes.** The lock-screen art test no longer depends on the Mac's own login-window setting (and a test covers the layout with the account photo showing); a debug-description warning in the lock-art log is gone.
 - **Volume and AirPlay in the full player.** The lyrics view gets shuffle and repeat beside the controls and a volume slider with the AirPlay picker under them, like iPhone's Now Playing. Dragging the volume up from mute unmutes.
 
 ## 1.1.1
