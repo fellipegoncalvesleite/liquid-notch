@@ -1341,6 +1341,46 @@ final class IslandDirector {
         if let a = island.running.first(where: { $0.id == .airPane }) { end(serial: a.serial) }
     }
 
+    // MARK: The support card (11-11)
+
+    @ObservationIgnored private var supportRetry: Scheduled?
+    @ObservationIgnored private var supportClose: Scheduled?
+
+    /// The one-time support card, once it's due (`Support.isDue`; `-forceSupportPrompt` skips the wait and the flag),
+    /// only at an idle moment: nothing open, no activity or HUD, the tray and Ask closed, not locked, in fullscreen, in
+    /// a menu or presenting. Busy: it tries again in 20 s. Marked shown as it shows, whatever happens to it.
+    func maybeShowSupportCard(force: Bool = false) {
+        supportRetry?.cancel(); supportRetry = nil
+        guard force || Support.isDue(), !island.running.contains(where: { $0.id == .support }) else { return }
+        let c = island.context
+        let busy = island.opened || island.activity != nil || island.hud != nil || island.trayOpen || island.askOpen != nil
+            || c.locked || c.lockScreen || c.fullscreen || c.menuOpen || c.presenting
+        guard !busy else {
+            supportRetry = schedule(20) { [weak self] in self?.maybeShowSupportCard(force: force) }
+            return
+        }
+        if !force { UserDefaults.standard.set(true, forKey: Support.shownKey) }
+        show(.support, opened: true, sample: false)
+        closeSupportCard(after: 15)
+    }
+
+    /// It leaves after 15 s, unless the pointer rests on its open card (then it looks again every 3 s).
+    private func closeSupportCard(after seconds: Double) {
+        supportClose?.cancel()
+        supportClose = schedule(seconds) { [weak self] in
+            guard let self, let a = island.running.first(where: { $0.id == .support }) else { return }
+            if island.opened && island.hovered { closeSupportCard(after: 3); return }
+            end(serial: a.serial)
+        }
+    }
+
+    /// Its buttons: Buy me a coffee opens the link; either closes it.
+    func supportCard(coffee: Bool) {
+        if coffee { Support.open() }
+        supportClose?.cancel(); supportClose = nil
+        if let a = island.running.first(where: { $0.id == .support }) { end(serial: a.serial) }
+    }
+
     func podsUpdated(_ p: PodsInfo) { pods = p }
 
     /// The transfer for the download's ears and card: live, or the sample's.

@@ -19,6 +19,8 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN" "$APP/Contents/MacOS/LiquidNotch"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
+# Public release builds move themselves into Applications on first launch (ApplicationInstaller); your own don't.
+[[ -n "${LN_ADHOC:-}" ]] && /usr/libexec/PlistBuddy -c "Add :LNMovesToApplications bool true" "$APP/Contents/Info.plist"
 # Compiled at launch by LiquidRenderer (no Metal Toolchain needed to build).
 cp Sources/LiquidNotch/Render/LiquidShape.metal "$APP/Contents/Resources/"
 # The app icon (drawn by tools/make_icon.swift).

@@ -53,12 +53,14 @@ Every one of these is optional, and most are off until you turn them on in Setup
 
 ## Install
 
-**Download**: grab the latest `Liquid-Notch-<version>.zip` from [Releases](../../releases/latest), unzip it, and move **Liquid Notch** to Applications. From 1.1 on it keeps itself up to date.
+**Download**: grab the latest `Liquid-Notch-<version>.zip` from [Releases](../../releases/latest), unzip it and open **Liquid Notch**. The first time, it moves itself into your Applications folder (it asks first) and opens again from there. From 1.1 on it keeps itself up to date.
 
-The app isn't notarized yet, so the first time macOS will say it can't check it. Either right-click the app › **Open** › **Open**, or run:
+**Uninstall**: right-click the island › **Uninstall Liquid Notch…**. It removes its settings and files, its Claude and Codex hooks, its login item and its permissions, puts your wallpaper back if the album art was on it, and moves itself to the Trash.
+
+The app isn't notarized yet, so the first time macOS will say it can't check it. Either right-click the downloaded app › **Open** › **Open**, or run this command with the app's current path:
 
 ```sh
-xattr -dr com.apple.quarantine "/Applications/Liquid Notch.app"
+xattr -dr com.apple.quarantine "/path/to/Liquid Notch.app"
 ```
 
 **Build from source** (Xcode 16 or later, Swift 6):

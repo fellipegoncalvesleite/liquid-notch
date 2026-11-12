@@ -14,10 +14,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var recordKey: HotKey?
     private var askKey: HotKey?
     private let agentSocket = AgentSocket()
+    private var wakeObserver: NSObjectProtocol?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        AirPane.countLaunch()   // AirPane's card never comes on the first launch
         NSApp.setActivationPolicy(.accessory)
+        // A public build opened outside Applications moves there first and opens again (11-11).
+        if ApplicationInstaller.moveIfNeeded(arguments: args) { return }
+        startApplication()
+    }
+
+    private func startApplication() {
+        AirPane.countLaunch()   // AirPane's card never comes on the first launch
         do {
             let renderer = try LiquidRenderer()
             let surface = NotchSurfaceController(renderer: renderer, tuning: tuning)
@@ -47,6 +54,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             if HookInstaller.needsUpgrade() { try? HookInstaller.install() }
             agentSocket.start()
         }
+        // The one-time support card (11-11): each launch counts; it's looked for a few seconds after launch and after
+        // waking, and shows only when due and the island is idle. `-forceSupportPrompt` shows it regardless (testing).
+        Support.recordLaunch()
+        let forceSupport = args.contains("-forceSupportPrompt")
+        lookForSupportCard(after: 8, force: forceSupport)
+        wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didWakeNotification, object: nil,
+                                                                         queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.lookForSupportCard(after: 5, force: forceSupport) }
+        }
         if args.contains("--debug") { debugPanel?.toggle() }
         if (setup.needed && !args.contains("--no-setup")) || args.contains("--setup") { setup.show() }
         if args.contains("--spike") {
@@ -54,6 +70,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 try? await Task.sleep(for: .seconds(2))
                 Spikes.run()
             }
+        }
+    }
+
+    private func lookForSupportCard(after seconds: Double, force: Bool) {
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(seconds))
+            self?.surface?.director.maybeShowSupportCard(force: force)
         }
     }
 
@@ -107,6 +130,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                                    keyEquivalent: "")
         airPane.target = self
         airPane.state = paired ? .on : .off
+        menu.addItem(withTitle: "Support Liquid Notch", action: #selector(support), keyEquivalent: "").target = self
         // The debug panel (samples, chess, tuning) is for development: ⌥ held while the menu opens, or `--debug` (v1).
         if NSEvent.modifierFlags.contains(.option) || CommandLine.arguments.contains("--debug") {
             menu.addItem(withTitle: "Debug Panel", action: #selector(toggleDebug), keyEquivalent: "d").target = self
@@ -115,6 +139,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         login.target = self
         login.state = SMAppService.mainApp.status == .enabled ? .on : .off
         menu.addItem(.separator())
+        menu.addItem(withTitle: "Uninstall Liquid Notch…", action: #selector(uninstall), keyEquivalent: "").target = self
         menu.addItem(withTitle: "Quit Liquid Notch", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         return menu
     }
@@ -129,7 +154,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func showSetup() { setup.show() }
 
+    @objc private func uninstall() { Uninstaller.confirmAndRun() }
+
     @objc private func openAirPane() { AirPane.open() }
+
+    @objc private func support() { Support.open() }
 
     @objc private func setBars(_ sender: NSMenuItem) {
         if let raw = sender.representedObject as? String, let mode = AudioBars.Mode(rawValue: raw) { surface?.bars.mode = mode }

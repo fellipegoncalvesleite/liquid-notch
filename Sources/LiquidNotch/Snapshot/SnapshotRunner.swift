@@ -262,6 +262,7 @@ enum SnapshotRunner {
                 // Notifications (banners only, 11-11): it arrives as its card, then waits in the ears; the shapes macOS
                 // sends (a title alone, a body alone, time-sensitive).
                 Scenario(name: "airpane · its one card") { d in d.show(.airPane, opened: true, sample: false) },
+                Scenario(name: "support · its one card") { d in d.show(.support, opened: true, sample: false) },
                 Scenario(name: "notices · Mail arrives as its card") { d in d.notifySample() },
                 Scenario(name: "notices · then in the ears") { d in d.notifySample(); d.clickOutside() },
                 Scenario(name: "notices · time sensitive") { d in d.notifySample(); d.clickOutside(); d.notifySample() },

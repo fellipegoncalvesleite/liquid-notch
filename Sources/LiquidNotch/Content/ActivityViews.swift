@@ -196,6 +196,8 @@ struct ActivityEars: View {
                 NoticeEar(notice: director.notice(for: instance), side: side)
             case (.airPane, _):
                 AirPaneEar(side: side)
+            case (.support, _):
+                SupportEar(side: side)
             }
         }
         .foregroundStyle(.white)
@@ -234,6 +236,7 @@ struct ActivityGlyph: View {
         case .lockScreen, .unlocked: Image(systemName: instance.id == .unlocked ? "lock.open.fill" : "lock.fill").font(.system(size: 12, weight: .semibold))
         case .notice: NoticeIcon(app: director.notice(for: instance).app, size: 20)
         case .airPane: Image(systemName: "airpods.gen4").font(.system(size: 12, weight: .semibold))
+        case .support: Image(systemName: "cup.and.saucer.fill").font(.system(size: 11, weight: .semibold))
         }
     }
 }
@@ -268,6 +271,7 @@ struct ActivityCard: View {
         case .lockScreen, .unlocked: EmptyView()   // ears only
         case .notice: NoticeCard(notice: director.notice(for: instance), director: director)
         case .airPane: AirPaneCard(director: director)
+        case .support: SupportCard(director: director)
         }
     }
 

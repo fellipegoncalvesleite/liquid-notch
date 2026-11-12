@@ -31,22 +31,11 @@ struct AirPaneCard: View {
             }
             .rise(0)
             HStack(spacing: 10) {
-                pill("Don't show again", prominent: false) { director.airPaneCard(learnMore: false) }
-                pill("Learn more", prominent: true) { director.airPaneCard(learnMore: true) }
+                CardPill(title: "Don't show again", prominent: false) { director.airPaneCard(learnMore: false) }
+                CardPill(title: "Learn more", prominent: true) { director.airPaneCard(learnMore: true) }
             }
             .rise(1)
         }
         .frame(maxHeight: .infinity)
-    }
-
-    private func pill(_ title: String, prominent: Bool, _ action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Text(title).font(IslandType.body.weight(.medium)).lineLimit(1)
-                .foregroundStyle(prominent ? .black : .white)
-                .frame(maxWidth: .infinity, minHeight: 32, maxHeight: 32)
-                .background(Capsule().fill(prominent ? .white : .white.opacity(0.12)))
-                .contentShape(Capsule())
-        }
-        .buttonStyle(PressScaleStyle(pressed: 0.97, hover: 1))
     }
 }

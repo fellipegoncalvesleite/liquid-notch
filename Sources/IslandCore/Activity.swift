@@ -20,6 +20,8 @@ public enum ActivityID: String, CaseIterable, Sendable {
     /// AirPane, once (11-11): after the AirPods have connected a few times, a small card says AirPane can show an
     /// iPhone-style popup when the case opens. Never on first launch, never over music or another activity.
     case airPane
+    /// The one-time support card (11-11): a week and five launches in, once, ever.
+    case support
 
     /// Shows only in the ears: a press opens nothing.
     public var earsOnly: Bool { self == .lockScreen || self == .unlocked }
@@ -64,7 +66,7 @@ public struct ActivitySpec: Sendable {
     public var padding: Double {
         switch id {
         case .call, .focus, .recording, .meeting, .download, .messages, .incoming, .camera, .recordCountdown, .recordingSaved,
-             .match, .chess, .kickoff, .goal, .fulltime, .agentLimit, .agentBack, .notice, .airPane: 20
+             .match, .chess, .kickoff, .goal, .fulltime, .agentLimit, .agentBack, .notice, .airPane, .support: 20
         default: 14
         }
     }
@@ -104,6 +106,7 @@ public struct ActivitySpec: Sendable {
         case .unlocked: "Unlocked"
         case .notice: "Notification"
         case .airPane: "AirPane"
+        case .support: "Support"
         }
     }
     /// Worth a ball when it isn't in the ears (11-06: downloads never are; they stay in the list and the menu).
@@ -192,6 +195,10 @@ public struct ActivitySpec: Sendable {
                          pulse: nil, colorHex: "#0A84FF"),
             ActivitySpec(id: .airPane, tier: .transient, ear: 96,
                          card: CardSize(width: 372, height: 139, radius: 40), transient: 10, opens: true,
+                         pulse: nil, colorHex: "#FFFFFF"),
+            // Opens by itself; the director closes it after 15 s unless the pointer rests on it (`showSupportCard`).
+            ActivitySpec(id: .support, tier: .transient, ear: 96,
+                         card: CardSize(width: 372, height: 139, radius: 40), transient: 15, opens: true,
                          pulse: nil, colorHex: "#FFFFFF"),
             ActivitySpec(id: .agentBack, tier: .transient, ear: 112,
                          card: CardSize(width: 372, height: 84, radius: 42), transient: 4, opens: false,
