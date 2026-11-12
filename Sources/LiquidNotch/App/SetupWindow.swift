@@ -169,8 +169,14 @@ private final class CalendarAsk {
     static let shared = CalendarAsk()
     private let store = EKEventStore()
     func ask() {
+        // Through the events' own store when it's running, so the answer shows the events at once.
+        if let watcher = MeetingWatcher.shared {
+            watcher.requestAccess { granted in setupLog.notice("calendar answer: \(granted, privacy: .public)") }
+            return
+        }
         store.requestFullAccessToEvents { granted, error in
             setupLog.notice("calendar answer: \(granted, privacy: .public) \(error.map { "\($0)" } ?? "", privacy: .public)")
+            DispatchQueue.main.async { NotificationCenter.default.post(name: MeetingWatcher.accessChanged, object: nil) }
         }
     }
 }

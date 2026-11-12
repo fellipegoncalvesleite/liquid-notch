@@ -79,13 +79,43 @@ final class MeetingWatcher {
     private var observers: [NSObjectProtocol] = []
     static let lead: TimeInterval = 600
 
+    /// Posted when Calendar access may have changed (Setup's Allow, or coming back from System Settings).
+    static let accessChanged = Notification.Name("MeetingWatcher.accessChanged")
+    /// The one store the app reads events through; Setup asks through it too, so the answer reaches the events at once
+    /// (a separate store got the grant while this one, created before it, kept showing nothing).
+    static weak var shared: MeetingWatcher?
+
     func start() {
+        Self.shared = self
         observers.append(NotificationCenter.default.addObserver(forName: .EKEventStoreChanged, object: store, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.check() }
+        })
+        observers.append(NotificationCenter.default.addObserver(forName: Self.accessChanged, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.reload() }
+        })
+        // Back from System Settings (Privacy › Calendars toggled there): read the access again.
+        observers.append(NotificationCenter.default.addObserver(forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.reload() }
         })
         observers.append(NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.check() }
         })
+        check()
+    }
+
+    /// Asks for full Calendar access through this store; on an answer the store is reset and the events read.
+    func requestAccess(_ done: (@MainActor @Sendable (Bool) -> Void)? = nil) {
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            let granted = (try? await store.requestFullAccessToEvents()) ?? false
+            reload()
+            done?(granted)
+        }
+    }
+
+    /// Access may have changed: a store made before the grant answers nothing until it's reset.
+    private func reload() {
+        store.reset()
         check()
     }
 
