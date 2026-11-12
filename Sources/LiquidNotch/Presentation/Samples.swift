@@ -133,6 +133,9 @@ struct MeetingInfo: Equatable, Sendable {
     /// Up to three attendees' initials, and how many more there are.
     var initials: [String]
     var more: Int
+    /// The event's calendar ("Work", "Hostal Mess"), and how many other events are on at the same time.
+    var calendar: String = ""
+    var alsoNow: Int = 0
 
     /// The first video-call link in the event's URL, notes or location.
     static func joinLink(in texts: [String?]) -> URL? {
@@ -151,6 +154,20 @@ struct MeetingInfo: Equatable, Sendable {
         let parts = base.split(whereSeparator: { $0 == " " || $0 == "." || $0 == "_" }).prefix(2)
         return parts.compactMap { $0.first.map { String($0).uppercased() } }.joined()
     }
+}
+
+/// One of today's events, for the tray's Today page.
+struct AgendaItem: Equatable, Sendable, Identifiable {
+    var id: String
+    var title: String
+    var start: Date
+    var end: Date
+    var allDay: Bool
+    var calendar: String
+    /// The calendar's colour.
+    var colorHex: String
+
+    func isNow(_ now: Date) -> Bool { !allDay && start <= now && end > now }
 }
 
 /// Connected AirPods and their battery (IOBluetooth's private getters, the way AirPane reads them).

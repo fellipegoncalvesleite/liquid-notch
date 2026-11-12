@@ -1375,6 +1375,23 @@ final class IslandDirector {
         }
     }
 
+    /// Today's events (all-day first, then by start), for the tray's Today page.
+    private(set) var agenda: [AgendaItem] = []
+
+    func agendaChanged(_ a: [AgendaItem]) { agenda = a }
+
+    /// The right-click menu's Event Start Alerts: a moment in the notch as each calendar event starts.
+    @ObservationIgnored var startAlertsOn: () -> Bool = { false }
+
+    func eventStarted(_ e: AgendaItem) {
+        guard startAlertsOn() else { return }
+        let f = DateFormatter()
+        f.timeStyle = .short
+        let body = "\(f.string(from: e.start)) – \(f.string(from: e.end))" + (e.calendar.isEmpty ? "" : " · \(e.calendar)")
+        notify(Notice(id: "event-\(e.id)", app: "com.apple.iCal", appName: "Calendar", title: e.title,
+                      subtitle: "Starting now", body: body, date: date(), level: .timeSensitive))
+    }
+
     func podsConnected(_ p: PodsInfo) {
         pods = p
         let d = UserDefaults.standard

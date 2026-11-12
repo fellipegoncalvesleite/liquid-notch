@@ -6,6 +6,9 @@
 - **Scroll on the island.** Scroll down on the notch (two fingers or the wheel) to open the player, scroll again for the tools; scroll up to close. Lists inside (lyrics, Clipboard, Shelf) still scroll as before.
 - **A Tools button on the player**, and Tools and Player & Lyrics in the right-click menu: the tools were only a double-click on the notch itself away while music played. The right-click menu is grouped into Island, Appearance and Liquid Notch.
 - **Click Opens Lyrics** (right-click menu, off by default): a click on the music opens the big player straight away.
+- **Today in the tools.** A Today tool (labelled with your next event's time) opens the day from every calendar: all-day events on top, then each event with what's on now highlighted and its time left.
+- **Overlapping events.** The event card shows the one that started last or is about to start, so lunch at 12:30 shows even while a 9:30–13:30 class runs, with "+N more now" and the event's calendar.
+- **Event Start Alerts** (right-click menu, off by default): a moment in the notch as each event starts.
 - **Volume and AirPlay in the full player.** The lyrics view gets shuffle and repeat beside the controls and a volume slider with the AirPlay picker under them, like iPhone's Now Playing. Dragging the volume up from mute unmutes.
 
 ## 1.1.1

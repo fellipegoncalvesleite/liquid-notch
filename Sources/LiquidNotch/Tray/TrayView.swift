@@ -1,4 +1,5 @@
 import AppKit
+import EventKit
 import IslandCore
 import SwiftUI
 import UniformTypeIdentifiers
@@ -48,6 +49,7 @@ private struct TrayPages: View {
                 case .clipboard: ClipboardPage(tray: tray)
                 case .shelf: ShelfPage(tray: tray)
                 case .shortcuts: ShortcutsPage(tray: tray)
+                case .today: TodayPage(tray: tray, director: director)
                 }
             }
             .id(tray.page)
@@ -80,6 +82,8 @@ private struct TrayGrid: View {
                 Tool(symbol: "record.circle", label: rec.map { $0.counting ? "Starting" : clockText($0.seconds) } ?? "Record",
                      tint: rec != nil ? IslandColor.red : nil) { director.recordToggle() }
                 Tool(symbol: "moon", label: tray.focusName ?? tray.focus?.rawValue ?? "Focus", tint: tray.focusName != nil || tray.focus != nil ? IslandColor.indigo : nil) { tray.go(.focus) }
+                // Today's calendar: labelled with what's next ("12:30"), so the grid already answers "what's next".
+                Tool(symbol: "calendar", label: TodayPage.nextLabel(director.agenda, now: Date()) ?? "Today") { tray.go(.today) }
             }
             GridRow {
                 Tool(symbol: running ? "pause" : "play", label: running ? "Pause" : "Play") { director.trayPause() }
@@ -87,6 +91,7 @@ private struct TrayGrid: View {
                 Tool(symbol: "clipboard", label: "Clipboard") { tray.go(.clipboard) }
                 Tool(symbol: "tray", label: "Shelf", badge: tray.files.isEmpty ? nil : tray.files.count) { tray.go(.shelf) }
                 Tool(symbol: "square.on.square", label: "Shortcuts") { tray.go(.shortcuts) }
+                Color.clear.frame(width: 1, height: 1)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -196,6 +201,100 @@ private struct Pill<Icon: View>: View {
         .buttonStyle(PressScaleStyle(pressed: 0.95, hover: 1))
         .onHover { over = $0 }
     }
+}
+
+/// Today's calendar (every calendar: classes, meals, work): all-day events as chips on top, then the day as a list
+/// with what's on now lit and its time left, scrolled to now. A row opens Calendar at that day.
+private struct TodayPage: View {
+    let tray: TrayModel
+    let director: IslandDirector
+
+    /// The tool's label: the next start time, or "Now" while something's on and nothing is next today.
+    static func nextLabel(_ agenda: [AgendaItem], now: Date) -> String? {
+        let timed = agenda.filter { !$0.allDay }
+        if let next = timed.first(where: { $0.start > now }) { return next.start.formatted(date: .omitted, time: .shortened) }
+        return timed.contains { $0.isNow(now) } ? "Now" : nil
+    }
+
+    var body: some View {
+        let _ = director.now
+        let now = Date()
+        let allDay = director.agenda.filter(\.allDay)
+        let timed = director.agenda.filter { !$0.allDay }
+        Page(tray: tray, title: now.formatted(.dateTime.weekday(.wide).day().month()),
+             action: (label: "Calendar", run: { NSWorkspace.shared.open(URL(string: "ical://")!) })) {
+            if director.agenda.isEmpty {
+                Text(EKAccess.granted ? "Nothing on today" : "Allow Calendar in Setup to see your day")
+                    .font(.system(size: 13)).foregroundStyle(.white.opacity(0.5))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                ScrollViewReader { proxy in
+                    ScrollView(.vertical, showsIndicators: false) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            if !allDay.isEmpty {
+                                ScrollView(.horizontal, showsIndicators: false) {
+                                    HStack(spacing: 6) {
+                                        ForEach(allDay) { e in
+                                            Text(e.title).font(.system(size: 11, weight: .medium)).lineLimit(1)
+                                                .padding(.horizontal, 8).padding(.vertical, 4)
+                                                .background(Capsule().fill(Color(hex: e.colorHex).opacity(0.35)))
+                                        }
+                                    }
+                                }
+                                .padding(.bottom, 2)
+                            }
+                            ForEach(timed) { e in
+                                AgendaRow(item: e, now: now).id(e.id)
+                            }
+                        }
+                    }
+                    .onAppear {
+                        let target = timed.first { $0.isNow(now) } ?? timed.first { $0.start > now }
+                        if let target { proxy.scrollTo(target.id, anchor: .top) }
+                    }
+                }
+            }
+        }
+    }
+}
+
+private struct AgendaRow: View {
+    let item: AgendaItem
+    let now: Date
+
+    var body: some View {
+        let on = item.isNow(now)
+        let past = item.end <= now
+        HStack(spacing: 8) {
+            RoundedRectangle(cornerRadius: 1.5).fill(Color(hex: item.colorHex)).frame(width: 3, height: 26)
+            VStack(alignment: .leading, spacing: 0) {
+                Text(item.title).font(.system(size: 12, weight: on ? .semibold : .regular)).lineLimit(1)
+                Text(detail(on: on)).font(.system(size: 10).monospacedDigit()).foregroundStyle(.white.opacity(0.5)).lineLimit(1)
+            }
+            Spacer(minLength: 0)
+            if on {
+                Text("NOW").font(.system(size: 9, weight: .bold)).padding(.horizontal, 5).padding(.vertical, 2)
+                    .background(Capsule().fill(Color(hex: item.colorHex).opacity(0.5)))
+            }
+        }
+        .padding(.horizontal, 6).padding(.vertical, 3)
+        .background(RoundedRectangle(cornerRadius: 8).fill(.white.opacity(on ? 0.12 : 0)))
+        .opacity(past ? 0.4 : 1)
+    }
+
+    private func detail(on: Bool) -> String {
+        let t = "\(item.start.formatted(date: .omitted, time: .shortened)) – \(item.end.formatted(date: .omitted, time: .shortened))"
+        if on {
+            let left = Int(item.end.timeIntervalSince(now) / 60)
+            return t + " · " + (left >= 60 ? "\(left / 60)h \(left % 60)m left" : "\(left)m left")
+        }
+        return item.calendar.isEmpty ? t : t + " · " + item.calendar
+    }
+}
+
+/// Whether Calendar is allowed (for the Today page's empty state).
+enum EKAccess {
+    static var granted: Bool { EKEventStore.authorizationStatus(for: .event) == .fullAccess }
 }
 
 private struct TimerPage: View {

@@ -114,6 +114,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         focusClick.target = self
         focusClick.state = UserDefaults.standard.bool(forKey: "clickOpensFocus") ? .on : .off
         focusClick.toolTip = "A click on the music opens the big player with lyrics. Scroll down on the island for the small player and the tools."
+        let starts = menu.addItem(withTitle: "Event Start Alerts", action: #selector(toggleStartAlerts(_:)), keyEquivalent: "")
+        starts.target = self
+        starts.state = UserDefaults.standard.bool(forKey: "calendarStartAlerts") ? .on : .off
+        starts.toolTip = "A moment in the notch as each calendar event starts (classes, meals, meetings)."
         // Timers start here (11-01 design): the island itself doesn't change.
         let timer = NSMenu()
         for minutes in [1, 5, 10, 25] {
@@ -164,6 +168,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func toggleClickOpensFocus(_ sender: NSMenuItem) {
         UserDefaults.standard.set(sender.state != .on, forKey: "clickOpensFocus")
+    }
+
+    @objc private func toggleStartAlerts(_ sender: NSMenuItem) {
+        UserDefaults.standard.set(sender.state != .on, forKey: "calendarStartAlerts")
     }
 
     @objc private func openTools() { surface?.director.openTray() }

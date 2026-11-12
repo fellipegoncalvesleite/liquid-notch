@@ -68,15 +68,24 @@ final class PowerMonitor {
     }
 }
 
-/// The next event from Calendar, from 10 minutes before it starts until it ends. Rechecks when the
-/// calendar changes, at the next boundary, and on wake.
+/// The event to show from Calendar, from 10 minutes before it starts until it ends. With several at once (a class and
+/// lunch overlapping), the one that started last, or is about to start: lunch at 12:30 shows at 12:20 even though the
+/// 9:30 class runs till 13:30; the card says how many others are on. Also today's whole agenda (the tray's Today page)
+/// and a moment as each event starts (`onStart`). Rechecks when the calendar changes, at every boundary, and on wake.
 @MainActor
 final class MeetingWatcher {
     var onChange: ((MeetingInfo?) -> Void)?
+    var onAgenda: (([AgendaItem]) -> Void)?
+    /// An event just started (for the start alert).
+    var onStart: ((AgendaItem) -> Void)?
     private(set) var current: MeetingInfo?
+    private(set) var agenda: [AgendaItem] = []
     private let store = EKEventStore()
     private var timer: Timer?
     private var observers: [NSObjectProtocol] = []
+    /// Starts already announced (event id + start), and when the last check ran.
+    private var announced: Set<String> = []
+    private var lastCheck = Date()
     static let lead: TimeInterval = 600
 
     func start() {
@@ -86,21 +95,48 @@ final class MeetingWatcher {
         observers.append(NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.check() }
         })
+        observers.append(NotificationCenter.default.addObserver(forName: .NSCalendarDayChanged, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.check() }
+        })
         check()
     }
 
     func check() {
-        guard EKEventStore.authorizationStatus(for: .event) == .fullAccess else { publish(nil); return }
+        guard EKEventStore.authorizationStatus(for: .event) == .fullAccess else { publish(nil); publishAgenda([]); return }
         let now = Date()
-        let events = store.events(matching: store.predicateForEvents(withStart: now.addingTimeInterval(-12 * 3600),
-                                                                     end: now.addingTimeInterval(24 * 3600), calendars: nil))
-            .filter { !$0.isAllDay && $0.endDate > now && $0.status != .canceled && !Self.declined($0) }
-            .sorted { $0.startDate < $1.startDate }
-        let next = events.first
-        let showing = next.flatMap { e in e.startDate.timeIntervalSince(now) <= Self.lead ? e : nil }
-        publish(showing.map(Self.info))
-        // Wake at the next boundary: when the next event comes within the lead, or when this one ends.
-        let wake = showing?.endDate ?? next.map { $0.startDate.addingTimeInterval(-Self.lead) }
+        let dayStart = Calendar.current.startOfDay(for: now)
+        let dayEnd = Calendar.current.date(byAdding: .day, value: 1, to: dayStart) ?? now.addingTimeInterval(86400)
+        let all = store.events(matching: store.predicateForEvents(withStart: min(dayStart, now.addingTimeInterval(-12 * 3600)),
+                                                                  end: max(dayEnd, now.addingTimeInterval(24 * 3600)), calendars: nil))
+            .filter { $0.status != .canceled && !Self.declined($0) }
+        publishAgenda(all.filter { $0.startDate < dayEnd && $0.endDate > dayStart }
+            .sorted { ($0.isAllDay ? 0 : 1, $0.startDate) < ($1.isAllDay ? 0 : 1, $1.startDate) }
+            .map(Self.agendaItem))
+
+        let timed = all.filter { !$0.isAllDay && $0.endDate > now }.sorted { $0.startDate < $1.startDate }
+        let window = timed.filter { $0.startDate.timeIntervalSince(now) <= Self.lead }
+        let showing = window.max { $0.startDate < $1.startDate }
+        publish(showing.map { e in
+            var m = Self.info(e)
+            m.alsoNow = window.count - 1
+            return m
+        })
+
+        // The start alerts: each event whose start passed since the last check (never more than a minute late, so a
+        // wake from sleep doesn't replay the morning).
+        for e in all where !e.isAllDay && e.startDate > lastCheck.addingTimeInterval(-1) && e.startDate <= now
+            && now.timeIntervalSince(e.startDate) < 60 {
+            let key = "\(e.eventIdentifier ?? e.title ?? "")@\(e.startDate.timeIntervalSince1970)"
+            if announced.insert(key).inserted { onStart?(Self.agendaItem(e)) }
+        }
+        lastCheck = now
+
+        // Wake at the next boundary: an event coming within the lead, starting, or ending.
+        let boundaries: [Date] = timed.flatMap { e -> [Date] in
+            let start: Date = e.startDate, end: Date = e.endDate
+            return [start.addingTimeInterval(-Self.lead), start, end]
+        }
+        let wake = boundaries.filter { $0 > now }.min()
         timer?.invalidate()
         if let wake {
             let t = Timer(fire: max(wake, now.addingTimeInterval(1)), interval: 0, repeats: false) { [weak self] _ in
@@ -120,13 +156,29 @@ final class MeetingWatcher {
         let names = people.map { $0.name ?? $0.url.absoluteString.replacingOccurrences(of: "mailto:", with: "") }
         return MeetingInfo(title: e.title ?? "Event", start: e.startDate, end: e.endDate,
                            joinURL: MeetingInfo.joinLink(in: [e.url?.absoluteString, e.location, e.notes]),
-                           initials: names.prefix(3).map(MeetingInfo.initials), more: max(names.count - 3, 0))
+                           initials: names.prefix(3).map(MeetingInfo.initials), more: max(names.count - 3, 0),
+                           calendar: e.calendar?.title.trimmingCharacters(in: .whitespaces) ?? "")
+    }
+
+    private static func agendaItem(_ e: EKEvent) -> AgendaItem {
+        let color = e.calendar?.cgColor.flatMap { NSColor(cgColor: $0)?.usingColorSpace(.sRGB) }
+        let hex = color.map { String(format: "#%02X%02X%02X", Int($0.redComponent * 255), Int($0.greenComponent * 255),
+                                     Int($0.blueComponent * 255)) } ?? "#8E8E93"
+        return AgendaItem(id: "\(e.eventIdentifier ?? UUID().uuidString)@\(e.startDate.timeIntervalSince1970)",
+                          title: e.title ?? "Event", start: e.startDate, end: e.endDate, allDay: e.isAllDay,
+                          calendar: e.calendar?.title.trimmingCharacters(in: .whitespaces) ?? "", colorHex: hex)
     }
 
     private func publish(_ m: MeetingInfo?) {
         guard m != current else { return }
         current = m
         onChange?(m)
+    }
+
+    private func publishAgenda(_ a: [AgendaItem]) {
+        guard a != agenda else { return }
+        agenda = a
+        onAgenda?(a)
     }
 }
 

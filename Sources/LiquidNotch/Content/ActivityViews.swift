@@ -537,7 +537,11 @@ private struct MeetingCard: View {
             .rise(0)
             HStack {
                 if m.initials.isEmpty {
-                    Text(canJoin ? "" : "No call link").font(IslandType.secondary).foregroundStyle(IslandColor.secondary)
+                    // An event without people (a class, lunch): its calendar, and what else is on now.
+                    let others = m.alsoNow > 0 ? "+\(m.alsoNow) more now" : ""
+                    let line = [m.calendar, others].filter { !$0.isEmpty }.joined(separator: " · ")
+                    Text(line.isEmpty ? (canJoin ? "" : "No call link") : line)
+                        .font(IslandType.secondary).foregroundStyle(IslandColor.secondary).lineLimit(1)
                 } else {
                     HStack(spacing: -2) {
                         ForEach(Array(m.initials.enumerated()), id: \.offset) { i, initials in
