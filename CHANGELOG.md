@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.1
+
+- **No more repeated permission prompts.** If the music bars can't hear system audio, Liquid Notch stops asking again with every song. You can still turn it on from Setup.
+- **The tools open while music plays.** Clicking the notch opens the tools even when a song is playing in an app that's in front.
+
 ## 1.1
 
 - **Works on Macs without a notch.** On a MacBook Air or any Mac without a notch, Liquid Notch now draws its own island at the top of the screen, sized to fit the menu bar.
