@@ -51,7 +51,14 @@ public struct AdapterStream {
             timestamp: timestamp,
             rate: rate > 0 ? rate : 1,
             artwork: (p["artworkData"] as? String).flatMap { Data(base64Encoded: $0) },
-            kind: kind(p["mediaType"]))
+            kind: kind(p["mediaType"]),
+            shuffle: shuffle(p["shuffleMode"]))
+    }
+
+    /// MediaRemote's shuffle mode: 1 off, 2 albums, 3 tracks (0 or missing: the player doesn't say).
+    static func shuffle(_ value: Any?) -> Bool? {
+        guard let n = (value as? NSNumber)?.intValue, n > 0 else { return nil }
+        return n > 1
     }
 
     /// MediaRemote's media type: `kMRMediaRemoteNowPlayingInfoTypeAudio` / `…Video` (or MPNowPlayingInfoMediaType's

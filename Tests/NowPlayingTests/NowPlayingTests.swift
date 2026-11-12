@@ -195,4 +195,27 @@ final class NowPlayingTests: XCTestCase {
         XCTAssertEqual(s.main?.title, "Chess"); XCTAssertNil(s.second)
         XCTAssertNil(NowPlayingMonitor.split(primary: nil, alternate: song).main, "the adapter says nothing plays")
     }
+
+    // MARK: Shuffle
+
+    func testShuffleFromTheStream() {
+        var s = AdapterStream()
+        guard case .nowPlaying(let np?) = s.consume(full) else { return XCTFail("no state") }
+        XCTAssertNil(np.shuffle, "missing: the player doesn't say")
+        guard case .nowPlaying(let on?) = s.consume(#"{"type":"data","diff":true,"payload":{"shuffleMode":3}}"#) else { return XCTFail("no state") }
+        XCTAssertEqual(on.shuffle, true)
+        guard case .nowPlaying(let off?) = s.consume(#"{"type":"data","diff":true,"payload":{"shuffleMode":1}}"#) else { return XCTFail("no state") }
+        XCTAssertEqual(off.shuffle, false)
+    }
+
+    func testShuffleScriptsAndParsing() {
+        XCTAssertEqual(PlayerNotifications.shuffleScript(true, bundleID: "com.spotify.client"),
+                       "tell application \"Spotify\" to set shuffling to true")
+        XCTAssertEqual(PlayerNotifications.shuffleScript(false, bundleID: "com.apple.Music"),
+                       "tell application \"Music\" to set shuffle enabled to false")
+        XCTAssertNil(PlayerNotifications.shuffleScript(true, bundleID: "com.google.Chrome"))
+        XCTAssertEqual(PlayerNotifications.parseShuffle("true\n"), true)
+        XCTAssertEqual(PlayerNotifications.parseShuffle("false"), false)
+        XCTAssertNil(PlayerNotifications.parseShuffle(""))
+    }
 }

@@ -65,6 +65,33 @@ public enum PlayerNotifications {
         return "tell application \"\(app)\" to set player position to \(String(format: "%.2f", seconds))"
     }
 
+    /// AppleScript that turns shuffle on or off.
+    public static func shuffleScript(_ on: Bool, bundleID: String) -> String? {
+        switch bundleID {
+        case musicBundle: "tell application \"Music\" to set shuffle enabled to \(on)"
+        case spotifyBundle: "tell application \"Spotify\" to set shuffling to \(on)"
+        default: nil
+        }
+    }
+
+    /// AppleScript that answers whether shuffle is on (`true` / `false`).
+    public static func shuffleStateScript(bundleID: String) -> String? {
+        switch bundleID {
+        case musicBundle: "tell application \"Music\" to shuffle enabled as text"
+        case spotifyBundle: "tell application \"Spotify\" to shuffling as text"
+        default: nil
+        }
+    }
+
+    /// Reads `shuffleStateScript`'s answer.
+    public static func parseShuffle(_ out: String) -> Bool? {
+        switch out.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
+        case "true": true
+        case "false": false
+        default: nil
+        }
+    }
+
     /// AppleScript that answers the player's position in seconds.
     public static func positionScript(bundleID: String) -> String? {
         switch bundleID {

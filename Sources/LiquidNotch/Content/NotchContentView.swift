@@ -494,8 +494,9 @@ private struct PlayerCard: View {
                                  label: director.playing ? "Pause" : "Play") { director.togglePlaying() }
                     PlayerButton(symbol: "forward.fill", size: 25, label: "Next track") { director.nextTrack(1) }
                 }
-                // The system's own route picker (AirPlay speakers, headphones, this Mac).
+                // Shuffle on the left; the system's own route picker (AirPlay speakers, headphones, this Mac) on the right.
                 HStack {
+                    ShuffleButton(director: director, size: 30)
                     Spacer()
                     AirPlayButton(size: 30)
                 }
@@ -503,6 +504,7 @@ private struct PlayerCard: View {
             .frame(width: card.width - 40, height: 34)
             .offset(x: 20, y: 120)
         }
+        .onAppear { director.refreshShuffle() }
         .foregroundStyle(.white)
         .frame(width: card.width, height: card.height, alignment: .topLeading)
     }
@@ -585,6 +587,29 @@ private struct PlayerProgress: View {
             guard length > 0 else { return }
             director.seek(to: director.elapsed + (direction == .increment ? 5 : -5))
         }
+    }
+}
+
+/// Shuffle, drawn like the AirPlay button beside it: a plain symbol, full white when on, dim when off.
+struct ShuffleButton: View {
+    let director: IslandDirector
+    let size: CGFloat
+
+    var body: some View {
+        let on = director.shuffle ?? false
+        Button { director.toggleShuffle() } label: {
+            Image(systemName: "shuffle")
+                .font(.system(size: size * 0.55, weight: .semibold))
+                .foregroundStyle(.white.opacity(on ? 1 : 0.4))
+                .frame(width: size, height: size)
+                .contentShape(Rectangle())
+                .animation(.easeOut(duration: 0.18), value: on)
+        }
+        .buttonStyle(PressScaleStyle())
+        .focusEffectDisabled()
+        .accessibilityLabel("Shuffle")
+        .accessibilityValue(on ? "On" : "Off")
+        .help(on ? "Shuffle on" : "Shuffle off")
     }
 }
 

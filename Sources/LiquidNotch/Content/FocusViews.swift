@@ -41,13 +41,22 @@ private struct FocusPlayerCard: View {
             LyricsList(director: director, style: .focus)
                 .frame(maxHeight: .infinity)
             FocusProgress(director: director)
-            HStack(spacing: 40) {
-                button("backward.fill", 22, "Previous track") { director.nextTrack(-1) }
-                button(director.playing ? "pause.fill" : "play.fill", 28, director.playing ? "Pause" : "Play") { director.togglePlaying() }
-                button("forward.fill", 22, "Next track") { director.nextTrack(1) }
+            ZStack {
+                HStack(spacing: 40) {
+                    button("backward.fill", 22, "Previous track") { director.nextTrack(-1) }
+                    button(director.playing ? "pause.fill" : "play.fill", 28, director.playing ? "Pause" : "Play") { director.togglePlaying() }
+                    button("forward.fill", 22, "Next track") { director.nextTrack(1) }
+                }
+                // As the small player: shuffle on the left, AirPlay on the right.
+                HStack {
+                    ShuffleButton(director: director, size: 28)
+                    Spacer()
+                    AirPlayButton(size: 28)
+                }
             }
             .frame(maxWidth: .infinity)
         }
+        .onAppear { director.refreshShuffle() }
         .foregroundStyle(.white)
         .padding(.leading, left).padding(.trailing, 28).padding(.vertical, 26)
     }

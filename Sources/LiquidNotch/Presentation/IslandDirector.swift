@@ -342,9 +342,45 @@ final class IslandDirector {
             clockFresh = at.timeIntervalSince(np.timestamp) < 0.5
         }
         lyricsLog.notice("report \(np.title, privacy: .public) playing=\(np.playing) elapsed=\(np.elapsed, format: .fixed(precision: 3)) age=\(at.timeIntervalSince(np.timestamp), format: .fixed(precision: 3)) est=\(np.elapsed(at: at), format: .fixed(precision: 3)) jump=\((before.map { np.elapsed(at: at) - $0 } ?? 0), format: .fixed(precision: 3))")
+        let playerChanged = nowPlaying?.bundleID != np.bundleID
         nowPlaying = np
+        adoptShuffle(from: np, playerChanged: playerChanged)
         guard !sampleOn else { return }
         applyRealMedia()
+    }
+
+    // MARK: Shuffle
+
+    /// Shuffle on or off, when the player says (nil: unknown; the button still toggles it).
+    private(set) var shuffle: Bool?
+    @ObservationIgnored var sendShuffle: ((Bool) -> Void)?
+    /// Asks the player whether shuffle is on (AppleScript, Music and Spotify).
+    @ObservationIgnored var probeShuffle: ((@escaping @MainActor (Bool) -> Void) -> Void)?
+    /// A toggle answers at once; the player's own report can lag it, so for a moment the toggle wins.
+    @ObservationIgnored private var shuffleHeldUntil: Date?
+
+    private var shuffleHeld: Bool { shuffleHeldUntil.map { date() < $0 } ?? false }
+
+    private func adoptShuffle(from np: NowPlaying, playerChanged: Bool) {
+        if playerChanged { shuffle = nil }
+        if !shuffleHeld, let s = np.shuffle { shuffle = s }
+        if playerChanged, np.shuffle == nil { refreshShuffle() }
+    }
+
+    /// Reads shuffle from the player where its Now Playing doesn't carry it.
+    func refreshShuffle() {
+        guard !sampleOn, nowPlaying != nil, nowPlaying?.shuffle == nil else { return }
+        probeShuffle? { [weak self] on in
+            guard let self, !self.shuffleHeld else { return }
+            self.shuffle = on
+        }
+    }
+
+    func toggleShuffle() {
+        let on = !(shuffle ?? false)
+        shuffle = on
+        shuffleHeldUntil = date().addingTimeInterval(2)
+        if !sampleOn, nowPlaying != nil { sendShuffle?(on) }
     }
 
     /// Opens the playing song in its player (`NowPlayingMonitor.openTrack`: Spotify's track, Music's reveal); false when it

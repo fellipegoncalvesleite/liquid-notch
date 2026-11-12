@@ -132,6 +132,8 @@ final class NotchSurfaceController {
         director.sendCommandTo = { [weak self] c, app in self?.nowPlaying.send(c, to: app) }
         nowPlaying.onSecond = { [weak self] np in self?.director.nowPlaying2Changed(np) }
         director.sendSeek = { [weak self] seconds in self?.nowPlaying.seek(to: seconds) }
+        director.sendShuffle = { [weak self] on in self?.nowPlaying.setShuffle(on) }
+        director.probeShuffle = { [weak self] done in self?.nowPlaying.probeShuffle(done) }
         director.probePosition = { [weak self] done in self?.nowPlaying.probePosition(done) }
         director.openTrack = { [weak self] done in self?.nowPlaying.openTrack(link: { NSWorkspace.shared.open($0) }, done) ?? done(false) }
         // The desktop strip glows on the song's beat (`DesktopColors.audioFrame`, `BeatTracker`).

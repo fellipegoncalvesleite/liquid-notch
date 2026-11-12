@@ -19,12 +19,14 @@ public struct NowPlaying: Equatable, Sendable {
     public var artwork: Data?
     /// What the player says it is (MediaRemote's media type), when it says.
     public var kind: Kind?
+    /// Shuffle on or off, when the player says (MediaRemote's shuffle mode; Music and Spotify by AppleScript).
+    public var shuffle: Bool?
 
     public enum Kind: Sendable, Equatable { case audio, video }
 
     public init(title: String, artist: String = "", album: String = "", bundleID: String? = nil, playing: Bool,
                 duration: Double? = nil, elapsed: Double = 0, timestamp: Date = Date(), rate: Double = 1,
-                artwork: Data? = nil, kind: Kind? = nil) {
+                artwork: Data? = nil, kind: Kind? = nil, shuffle: Bool? = nil) {
         self.title = title
         self.artist = artist
         self.album = album
@@ -36,6 +38,7 @@ public struct NowPlaying: Equatable, Sendable {
         self.rate = rate
         self.artwork = artwork
         self.kind = kind
+        self.shuffle = shuffle
     }
 
     /// Music, for what follows the album (the desktop's colours and strip, the strip's beat, the lock screen's art

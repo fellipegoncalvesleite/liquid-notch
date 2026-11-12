@@ -154,6 +154,30 @@ public final class NowPlayingMonitor {
         ifAutomationAllowed(bundle) { [weak self] in self?.run("/usr/bin/osascript", ["-e", script]) }
     }
 
+    /// Turns shuffle on or off: AppleScript to Music or Spotify where Automation is allowed (Spotify ignores
+    /// MediaRemote's shuffle command), else the adapter's `shuffle 3|1` (tracks, off).
+    public func setShuffle(_ on: Bool) {
+        guard let bundle = current?.bundleID else { return }
+        let adapterRoute: @MainActor () -> Void = { [weak self] in
+            guard let self, self.showingAdapter, let adapter = self.adapter else { return }
+            self.run("/usr/bin/perl", [adapter.script.path, adapter.framework.path, "shuffle", on ? "3" : "1"])
+        }
+        guard let script = PlayerNotifications.shuffleScript(on, bundleID: bundle) else { adapterRoute(); return }
+        ifAutomationAllowed(bundle, then: { [weak self] in self?.run("/usr/bin/osascript", ["-e", script]) },
+                            otherwise: adapterRoute)
+    }
+
+    /// Whether shuffle is on, by AppleScript (Music or Spotify, only where Automation is already allowed): Spotify's
+    /// Now Playing never says.
+    public func probeShuffle(_ completion: @escaping @MainActor (Bool) -> Void) {
+        guard let bundle = current?.bundleID, let script = PlayerNotifications.shuffleStateScript(bundleID: bundle) else { return }
+        ifAutomationAllowed(bundle) { [weak self] in
+            self?.run("/usr/bin/osascript", ["-e", script]) { out in
+                if let on = PlayerNotifications.parseShuffle(out) { completion(on) }
+            }
+        }
+    }
+
     /// The player's own position (AppleScript's `player position`; Music or Spotify, only where Automation is already
     /// allowed) and the moment it was true (the middle of the script's run): the lyrics' check on the Now Playing clock.
     public func probePosition(_ completion: @escaping @MainActor (Double, Date) -> Void) {
