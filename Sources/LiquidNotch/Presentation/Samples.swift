@@ -153,6 +153,20 @@ struct MeetingInfo: Equatable, Sendable {
     }
 }
 
+/// One of today's events, for the day view.
+struct AgendaItem: Equatable, Sendable, Identifiable {
+    var id: String
+    var title: String
+    var start: Date
+    var end: Date
+    var allDay: Bool
+    var calendar: String
+    /// The calendar's colour.
+    var colorHex: String
+
+    func isNow(_ now: Date) -> Bool { !allDay && start <= now && end > now }
+}
+
 /// Connected AirPods and their battery (IOBluetooth's private getters, the way AirPane reads them).
 struct PodsInfo: Equatable, Sendable {
     var name: String

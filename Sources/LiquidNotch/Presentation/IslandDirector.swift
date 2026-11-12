@@ -1336,6 +1336,26 @@ final class IslandDirector {
         show(.charging, sample: false)
     }
 
+    /// Today's events (all-day first, then by start), for the day view.
+    private(set) var agenda: [AgendaItem] = []
+
+    func agendaChanged(_ a: [AgendaItem]) { agenda = a }
+
+    /// Your day, large (a click on the event card or its ball's peek): the tools at the lyrics player's size, on the day.
+    func openDay() {
+        guard forcedMode == nil else { return }
+        tray.onGo = { [weak self] page in
+            guard let self, page != .today, island.dayLarge else { return }
+            send(.closeDay)
+        }
+        hoverOff?.cancel(); hoverOff = nil
+        setIdleHover(false)
+        if groups.tray { tray.go(.today); send(.openDay); return }
+        tray.nextPage = .today
+        send(.openDay)
+        if !groups.tray { tray.nextPage = .main }
+    }
+
     /// The next event came within 10 minutes (or ended).
     func meetingChanged(_ m: MeetingInfo?) {
         meeting = m

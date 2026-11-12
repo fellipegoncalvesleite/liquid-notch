@@ -592,7 +592,9 @@ struct BallPeekLayer: View {
                 let card = Island.peekCard(party)
                 CardPlacement(frame: frame, card: card) {
                     Group {
-                        if party == .media { mediaRow } else { row(party) }
+                        if party == .media { mediaRow }
+                        else if let a = director.island.instance(party), a.id == .meeting { meetingRow(a) }
+                        else { row(party) }
                     }
                     .frame(width: card.width, height: card.height)
                     .foregroundStyle(.white)
@@ -600,6 +602,27 @@ struct BallPeekLayer: View {
             }
         }
         .onChange(of: party) { _, p in if p != nil { last = p } }
+    }
+
+    /// An event's ball peeks with its date tile, the title over the time to it (or left), and how far it has gone.
+    private func meetingRow(_ a: ActivityInstance) -> some View {
+        let m = director.meetingFor(a), now = director.date()
+        let toStart = m.start.timeIntervalSince(now)
+        let total = max(m.end.timeIntervalSince(m.start), 60)
+        let gone = min(max(-toStart / total, 0), 1)
+        let line = toStart > 0 ? "in \(Int((toStart / 60).rounded(.up))) min" : "\(durationText(m.end.timeIntervalSince(now))) left"
+        return HStack(spacing: 10) {
+            CalendarTile(size: 26)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(director.island.context.presenting ? "Event" : m.title).font(.system(size: 13, weight: .semibold)).lineLimit(1)
+                Text(line).font(.system(size: 12).monospacedDigit()).foregroundStyle(.white.opacity(0.6)).lineLimit(1)
+            }
+            Spacer(minLength: 6)
+            if toStart <= 0 {
+                LineBar(progress: gone).frame(width: 56, height: 5)
+            }
+        }
+        .padding(.horizontal, 17)
     }
 
     private func row(_ party: Party) -> some View {

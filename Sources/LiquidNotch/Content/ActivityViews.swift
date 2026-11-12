@@ -568,6 +568,10 @@ private struct MeetingCard: View {
             .rise(1)
         }
         .frame(maxHeight: .infinity)
+        // A click anywhere but Join opens your day.
+        .contentShape(Rectangle())
+        .onTapGesture { if !director.isSample(instance) { director.openDay() } }
+        .help("Open your day")
     }
 }
 
@@ -749,7 +753,7 @@ struct MessagesIcon: View {
 }
 
 /// Today's date on a little calendar tile.
-private struct CalendarTile: View {
+struct CalendarTile: View {
     let size: Double
 
     var body: some View {

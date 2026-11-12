@@ -208,6 +208,7 @@ final class NotchSurfaceController {
         power.onLow = { [weak self] p in self?.director.lowBattery(p) }
         power.start()
         meetings.onChange = { [weak self] m in self?.director.meetingChanged(m) }
+        meetings.onAgenda = { [weak self] a in self?.director.agendaChanged(a) }
         meetings.start()
         pods.onConnect = { [weak self] p in self?.director.podsConnected(p) }
         pods.onUpdate = { [weak self] p in self?.director.podsUpdated(p) }

@@ -110,6 +110,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             item.tag = minutes
         }
         menu.addItem(withTitle: "Timer", action: nil, keyEquivalent: "").submenu = timer
+        // Which calendars show (the event, its ball and your day), by account; only once Calendar is allowed.
+        if let watcher = MeetingWatcher.shared {
+            let choices = watcher.calendarChoices()
+            if !choices.isEmpty {
+                let cals = NSMenu()
+                var account: String?
+                for c in choices {
+                    if c.account != account {
+                        if account != nil { cals.addItem(.separator()) }
+                        cals.addItem(.sectionHeader(title: c.account))
+                        account = c.account
+                    }
+                    let item = cals.addItem(withTitle: c.title, action: #selector(toggleCalendar(_:)), keyEquivalent: "")
+                    item.target = self
+                    item.representedObject = c.id
+                    item.state = c.shown ? .on : .off
+                    item.image = NSImage(size: NSSize(width: 10, height: 10), flipped: false) { r in
+                        c.color.setFill(); NSBezierPath(ovalIn: r).fill(); return true
+                    }
+                }
+                cals.addItem(.separator())
+                cals.addItem(withTitle: "Show All", action: #selector(showAllCalendars), keyEquivalent: "").target = self
+                menu.addItem(withTitle: "Calendars", action: nil, keyEquivalent: "").submenu = cals
+            }
+        }
         // The music bars follow what's playing, or animate (owner, 11-06).
         let bars = NSMenu()
         for mode in AudioBars.Mode.allCases {
@@ -143,6 +168,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(withTitle: "Quit Liquid Notch", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         return menu
     }
+
+    @objc private func toggleCalendar(_ sender: NSMenuItem) {
+        guard let id = sender.representedObject as? String else { return }
+        MeetingWatcher.shared?.setCalendar(id, shown: sender.state != .on)
+    }
+
+    @objc private func showAllCalendars() { MeetingWatcher.shared?.showAllCalendars() }
 
     func applicationWillTerminate(_ notification: Notification) {
         LockWallpaper.shared.restoreOnQuit()   // never leave someone's wallpaper behind

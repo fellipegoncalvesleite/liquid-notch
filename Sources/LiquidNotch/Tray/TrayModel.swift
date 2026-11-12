@@ -6,7 +6,7 @@ import Observation
 /// decides when the tray shows; this decides what's in it.
 @MainActor @Observable
 final class TrayModel {
-    enum Page: String, CaseIterable, Sendable { case main, timer, focus, clipboard, shelf, shortcuts }
+    enum Page: String, CaseIterable, Sendable { case main, timer, focus, clipboard, shelf, shortcuts, today }
 
     struct Clip: Equatable, Identifiable {
         let id: Int
@@ -62,8 +62,12 @@ final class TrayModel {
         if page == .shortcuts { listShortcuts?() }
     }
 
+    /// A page was chosen (the large day shrinks when its page is left).
+    @ObservationIgnored var onGo: ((Page) -> Void)?
+
     func go(_ p: Page) {
         page = p
+        onGo?(p)
         done = nil
         if p == .shortcuts { listShortcuts?() }
     }

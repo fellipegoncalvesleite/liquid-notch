@@ -153,4 +153,29 @@ final class TrayTests: XCTestCase {
         i.apply(.context(DesktopContext(menuOpen: true)))
         XCTAssertFalse(i.trayOpen)
     }
+
+    // A click on the event card: the day, large (the lyrics player's size); Back to the grid shrinks it.
+    func testOpenDayIsLargeAndCloseDayShrinks() {
+        var i = Island()
+        i.apply(.openDay)
+        XCTAssertTrue(i.trayShows)
+        XCTAssertTrue(i.dayLarge)
+        XCTAssertEqual(i.cardSize(player: player), Island.dayCard)
+        i.apply(.closeDay)
+        XCTAssertFalse(i.dayLarge)
+        XCTAssertEqual(i.cardSize(player: player), player)
+        i.apply(.close)
+        XCTAssertFalse(i.dayLarge)
+    }
+
+    func testOpenDayWithASongHidesThePlayer() {
+        var i = Island()
+        i.apply(.startMedia)
+        i.apply(.openDay)
+        XCTAssertTrue(i.dayLarge)
+        XCTAssertFalse(i.groups(.card).player)
+        XCTAssertEqual(i.cardSize(player: player), Island.dayCard)
+        i.apply(.close)
+        XCTAssertFalse(i.dayLarge)
+    }
 }

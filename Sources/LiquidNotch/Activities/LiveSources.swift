@@ -73,7 +73,10 @@ final class PowerMonitor {
 @MainActor
 final class MeetingWatcher {
     var onChange: ((MeetingInfo?) -> Void)?
+    /// Today's events, all-day first, then by start (the day view).
+    var onAgenda: (([AgendaItem]) -> Void)?
     private(set) var current: MeetingInfo?
+    private(set) var agenda: [AgendaItem] = []
     private let store = EKEventStore()
     private var timer: Timer?
     private var observers: [NSObjectProtocol] = []
@@ -100,6 +103,9 @@ final class MeetingWatcher {
         observers.append(NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.check() }
         })
+        observers.append(NotificationCenter.default.addObserver(forName: .NSCalendarDayChanged, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.check() }
+        })
         check()
     }
 
@@ -120,17 +126,29 @@ final class MeetingWatcher {
     }
 
     func check() {
-        guard EKEventStore.authorizationStatus(for: .event) == .fullAccess else { publish(nil); return }
+        guard EKEventStore.authorizationStatus(for: .event) == .fullAccess else { publish(nil); publishAgenda([]); return }
         let now = Date()
-        let events = store.events(matching: store.predicateForEvents(withStart: now.addingTimeInterval(-12 * 3600),
-                                                                     end: now.addingTimeInterval(24 * 3600), calendars: nil))
-            .filter { !$0.isAllDay && $0.endDate > now && $0.status != .canceled && !Self.declined($0) }
-            .sorted { $0.startDate < $1.startDate }
-        let next = events.first
-        let showing = next.flatMap { e in e.startDate.timeIntervalSince(now) <= Self.lead ? e : nil }
+        let dayStart = Calendar.current.startOfDay(for: now)
+        let dayEnd = Calendar.current.date(byAdding: .day, value: 1, to: dayStart) ?? now.addingTimeInterval(86400)
+        let calendars = shownCalendars()
+        // Every calendar turned off: nothing shows (an empty list would mean "all" to EventKit).
+        let all = calendars?.isEmpty == true ? [] : store.events(matching: store.predicateForEvents(
+            withStart: min(dayStart, now.addingTimeInterval(-12 * 3600)),
+            end: max(dayEnd, now.addingTimeInterval(24 * 3600)), calendars: calendars))
+            .filter { $0.status != .canceled && !Self.declined($0) }
+        publishAgenda(all.filter { $0.startDate < dayEnd && $0.endDate > dayStart }
+            .sorted { ($0.isAllDay ? 0 : 1, $0.startDate) < ($1.isAllDay ? 0 : 1, $1.startDate) }
+            .map(Self.agendaItem))
+
+        // With several on at once (a class and lunch overlapping), the one that started last or is about to start: lunch
+        // at 12:30 shows from 12:20 even though the 9:30 class runs till 13:30.
+        let timed = all.filter { !$0.isAllDay && $0.endDate > now }
+        let showing = timed.filter { $0.startDate.timeIntervalSince(now) <= Self.lead }.max { $0.startDate < $1.startDate }
         publish(showing.map(Self.info))
-        // Wake at the next boundary: when the next event comes within the lead, or when this one ends.
-        let wake = showing?.endDate ?? next.map { $0.startDate.addingTimeInterval(-Self.lead) }
+
+        // Wake at the next boundary: an event coming within the lead, starting, or ending.
+        let wake = timed.flatMap { [$0.startDate.addingTimeInterval(-Self.lead), $0.startDate, $0.endDate] }
+            .filter { $0 > now }.min()
         timer?.invalidate()
         if let wake {
             let t = Timer(fire: max(wake, now.addingTimeInterval(1)), interval: 0, repeats: false) { [weak self] _ in
@@ -139,6 +157,53 @@ final class MeetingWatcher {
             RunLoop.main.add(t, forMode: .common)
             timer = t
         }
+    }
+
+    // MARK: Which calendars show
+
+    /// Calendars turned off in the right-click menu's Calendars submenu (by identifier; new calendars show by default).
+    static let hiddenKey = "hiddenCalendars"
+    static var hidden: Set<String> {
+        get { Set(UserDefaults.standard.stringArray(forKey: hiddenKey) ?? []) }
+        set { UserDefaults.standard.set(Array(newValue).sorted(), forKey: hiddenKey) }
+    }
+
+    struct CalendarChoice {
+        let id: String
+        let title: String
+        let account: String
+        let color: NSColor
+        let shown: Bool
+    }
+
+    /// Every event calendar, by account then title, with whether it shows.
+    func calendarChoices() -> [CalendarChoice] {
+        guard EKEventStore.authorizationStatus(for: .event) == .fullAccess else { return [] }
+        let hidden = Self.hidden
+        return store.calendars(for: .event)
+            .map { CalendarChoice(id: $0.calendarIdentifier, title: $0.title.trimmingCharacters(in: .whitespaces),
+                                  account: $0.source?.title ?? "Other", color: NSColor(cgColor: $0.cgColor) ?? .gray,
+                                  shown: !hidden.contains($0.calendarIdentifier)) }
+            .sorted { ($0.account, $0.title.lowercased()) < ($1.account, $1.title.lowercased()) }
+    }
+
+    func setCalendar(_ id: String, shown: Bool) {
+        var h = Self.hidden
+        if shown { h.remove(id) } else { h.insert(id) }
+        Self.hidden = h
+        check()
+    }
+
+    func showAllCalendars() {
+        Self.hidden = []
+        check()
+    }
+
+    /// The calendars to read: all but the hidden ones (nil: all).
+    private func shownCalendars() -> [EKCalendar]? {
+        let hidden = Self.hidden
+        guard !hidden.isEmpty else { return nil }
+        return store.calendars(for: .event).filter { !hidden.contains($0.calendarIdentifier) }
     }
 
     private static func declined(_ e: EKEvent) -> Bool {
@@ -153,10 +218,28 @@ final class MeetingWatcher {
                            initials: names.prefix(3).map(MeetingInfo.initials), more: max(names.count - 3, 0))
     }
 
+    /// The calendar's colour as `#RRGGBB` (grey when it has none).
+    private static func hex(of e: EKEvent) -> String {
+        guard let c = e.calendar?.cgColor.flatMap({ NSColor(cgColor: $0)?.usingColorSpace(.sRGB) }) else { return "#8E8E93" }
+        return String(format: "#%02X%02X%02X", Int(c.redComponent * 255), Int(c.greenComponent * 255), Int(c.blueComponent * 255))
+    }
+
+    private static func agendaItem(_ e: EKEvent) -> AgendaItem {
+        AgendaItem(id: "\(e.eventIdentifier ?? UUID().uuidString)@\(e.startDate.timeIntervalSince1970)",
+                   title: e.title ?? "Event", start: e.startDate, end: e.endDate, allDay: e.isAllDay,
+                   calendar: e.calendar?.title.trimmingCharacters(in: .whitespaces) ?? "", colorHex: hex(of: e))
+    }
+
     private func publish(_ m: MeetingInfo?) {
         guard m != current else { return }
         current = m
         onChange?(m)
+    }
+
+    private func publishAgenda(_ a: [AgendaItem]) {
+        guard a != agenda else { return }
+        agenda = a
+        onAgenda?(a)
     }
 }
 

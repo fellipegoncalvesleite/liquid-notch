@@ -216,6 +216,10 @@ public enum IslandEvent: Sendable, Equatable {
     /// click on the player, owner 11-01: one click for the music, two for the music and the tools).
     /// Over an activity, Claude or Codex in the ears, the tools open and it waits in a ball (owner, 11-11).
     case openTray
+    /// Your day, large (a click on the event card or its ball's peek): the tools at the lyrics player's size, on the day.
+    case openDay
+    /// The day's page left (Back): the tools go back to their own size.
+    case closeDay
     /// Double-click on the music (owner, 11-07): the player grows into the focused view with the lyrics.
     case focusMedia
     case close
@@ -277,6 +281,8 @@ public struct Island: Equatable, Sendable {
     public private(set) var askOpen: AgentProvider?
     /// The player's card shows the tray's tools beside it.
     public private(set) var playerTools = false
+    /// The tools are showing your day at the large size (`openDay`).
+    public private(set) var dayLarge = false
     /// The tray is open over whatever holds the ears (an activity, Claude or Codex), which waits in a ball meanwhile: the
     /// card is the tray's (sim `notesOver`).
     public private(set) var trayOver = false
@@ -400,6 +406,11 @@ public struct Island: Equatable, Sendable {
             hovered = true
             peekBall = nil
             questionOnly = false
+        case .openDay:
+            if !trayShows { apply(.openTray) }
+            dayLarge = trayShows
+        case .closeDay:
+            dayLarge = false
         case .focusMedia:
             guard mediaOn, !context.menuOpen, !context.fullscreen, hud == nil else { break }
             // The open card's player (the second one's, from its ball), else the main one.
@@ -457,6 +468,7 @@ public struct Island: Equatable, Sendable {
             if opened && visibleMedia { playerTools = true }    // a song appeared under the open tray: the tools stay
         }
         if playerTools && (!opened || cardOwner != .media || !mediaOn) { playerTools = false }
+        if !trayShows { dayLarge = false }
         if mediaFocus && (!opened || !(cardOwner == .media || cardOwner == .media2 && media2On) || !mediaOn) { mediaFocus = false }
         if !mediaFocus { focusVideo = false }
         if !opened { questionOnly = false; askOpen = nil }
@@ -781,6 +793,7 @@ public struct Island: Equatable, Sendable {
         }
         if let a = instance(own) { return a.spec.card }
         if mediaOn && mediaFocus && (own == .media || own == .media2) { return focusVideo ? Self.videoCard : Self.focusCard }
+        if trayShows && dayLarge { return Self.dayCard }
         var p = player
         if trayShows, let h = trayHeight { p.height = max(p.height, h) }
         guard mediaOn, playerTools else { return p }
@@ -793,6 +806,8 @@ public struct Island: Equatable, Sendable {
 
     /// The focused player: the cover large on the left, the title and the synced lyrics on the right, the controls under.
     public static let focusCard = CardSize(width: 620, height: 318, radius: 40)
+    /// Your day, large: the lyrics player's size.
+    public static let dayCard = focusCard
     /// Watching a video in the island (owner, 11-11): 16:9 at 512 × 288 inside 16 pt margins, a 36 pt title row; it
     /// fits under the notch in the island's 420 pt window (608 × 342 ran past it, "a bit cut off"). Bigger: picture in
     /// picture.
@@ -858,7 +873,7 @@ public struct Island: Equatable, Sendable {
         if let p = peekBall, p != .more, mode == .duo || mode == .peek, let i = g.balls.firstIndex(of: p) { g.peekPlace = i }
         g.hud = mode == .hud
         g.peek = showMusic && mode == .peek
-        g.player = showMusic && (mode == .expanded || mode == .card)
+        g.player = showMusic && (mode == .expanded || (mode == .card && !dayLarge))
         g.tray = mode == .card && own == .media && (trayOpen || (mediaOn && playerTools))
         if g.player && mode == .card && mediaFocus {
             g.player = false; g.tray = false

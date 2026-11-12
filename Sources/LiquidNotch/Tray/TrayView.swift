@@ -1,4 +1,5 @@
 import AppKit
+import EventKit
 import IslandCore
 import SwiftUI
 import UniformTypeIdentifiers
@@ -48,6 +49,7 @@ private struct TrayPages: View {
                 case .clipboard: ClipboardPage(tray: tray)
                 case .shelf: ShelfPage(tray: tray)
                 case .shortcuts: ShortcutsPage(tray: tray)
+                case .today: DayPage(tray: tray, director: director)
                 }
             }
             .id(tray.page)
@@ -195,6 +197,152 @@ private struct Pill<Icon: View>: View {
         }
         .buttonStyle(PressScaleStyle(pressed: 0.95, hover: 1))
         .onHover { over = $0 }
+    }
+}
+
+/// Your day, at the lyrics player's size (a click on the event card): what's on now on the left (its time left large, how
+/// far it has gone, what's next), the day's events on the right, scrolled to now. Titles hide while presenting.
+private struct DayPage: View {
+    let tray: TrayModel
+    let director: IslandDirector
+    @Environment(\.presenting) private var presenting
+
+    var body: some View {
+        let _ = director.now
+        let now = director.date()
+        let timed = director.agenda.filter { !$0.allDay }
+        Page(tray: tray, title: now.formatted(.dateTime.weekday(.wide).day().month()),
+             action: (label: "Calendar", run: { NSWorkspace.shared.open(URL(string: "ical://")!) })) {
+            if director.agenda.isEmpty {
+                Text(EKEventStore.authorizationStatus(for: .event) == .fullAccess ? "Nothing on today" : "Allow Calendar in Setup to see your day")
+                    .font(.system(size: 13)).foregroundStyle(.white.opacity(0.5))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                HStack(alignment: .top, spacing: 18) {
+                    current(timed.last { $0.isNow(now) }, next: timed.first { $0.start > now }, now: now)
+                        .frame(width: 236)
+                    Rectangle().fill(.white.opacity(0.1)).frame(width: 1)
+                    DayList(items: director.agenda, now: now, presenting: presenting)
+                }
+                .padding(.top, 6)
+            }
+        }
+    }
+
+    private func title(_ e: AgendaItem) -> String { presenting ? "Event" : e.title }
+
+    @ViewBuilder private func current(_ e: AgendaItem?, next: AgendaItem?, now: Date) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            if let e {
+                let gone = min(max(now.timeIntervalSince(e.start) / max(e.end.timeIntervalSince(e.start), 60), 0), 1)
+                let left = e.end.timeIntervalSince(now)
+                HStack(alignment: .top, spacing: 10) {
+                    RoundedRectangle(cornerRadius: 1.5).fill(Color(hex: e.colorHex)).frame(width: 3, height: 40)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(title(e)).font(.system(size: 17, weight: .semibold)).lineLimit(2)
+                        Text(span(e) + (e.calendar.isEmpty ? "" : " · \(e.calendar)"))
+                            .font(.system(size: 12).monospacedDigit()).foregroundStyle(.white.opacity(0.55)).lineLimit(1)
+                    }
+                }
+                Spacer(minLength: 12)
+                HStack(alignment: .firstTextBaseline, spacing: 5) {
+                    Text(durationText(left)).font(.system(size: 34, weight: .semibold).monospacedDigit())
+                        .foregroundStyle(left <= 300 ? IslandColor.red : .white)
+                        .contentTransition(.numericText())
+                    Text("left").font(.system(size: 13)).foregroundStyle(.white.opacity(0.5))
+                }
+                LineBar(progress: gone, tint: left <= 300 ? IslandColor.red : Color(hex: e.colorHex))
+                    .frame(height: 5).padding(.top, 8)
+            } else {
+                Text("Nothing on now").font(.system(size: 17, weight: .semibold))
+                Text(next.map { "Free until \($0.start.formatted(date: .omitted, time: .shortened))" } ?? "Free for the rest of the day")
+                    .font(.system(size: 12).monospacedDigit()).foregroundStyle(.white.opacity(0.55)).padding(.top, 2)
+            }
+            Spacer(minLength: 10)
+            if let next {
+                HStack(spacing: 10) {
+                    RoundedRectangle(cornerRadius: 1.5).fill(Color(hex: next.colorHex)).frame(width: 3, height: 30)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(title(next)).font(.system(size: 13, weight: .medium)).lineLimit(1)
+                        Text("Next, in \(durationText(next.start.timeIntervalSince(now)))")
+                            .font(.system(size: 11).monospacedDigit()).foregroundStyle(.white.opacity(0.5))
+                    }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+}
+
+/// The day's events: all-day ones on top, then each timed one by its start time; past ones fade, the one on now is lit.
+private struct DayList: View {
+    let items: [AgendaItem]
+    let now: Date
+    let presenting: Bool
+
+    var body: some View {
+        let timed = items.filter { !$0.allDay }
+        ScrollViewReader { proxy in
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 2) {
+                    ForEach(items.filter(\.allDay)) { e in
+                        row(e, time: "All day", on: false, past: false)
+                    }
+                    ForEach(timed) { e in
+                        row(e, time: e.start.formatted(date: .omitted, time: .shortened), on: e.isNow(now), past: e.end <= now)
+                    }
+                }
+            }
+            .onAppear {
+                if let target = timed.first(where: { $0.isNow(now) }) ?? timed.first(where: { $0.start > now }) {
+                    proxy.scrollTo(target.id, anchor: .top)
+                }
+            }
+        }
+    }
+
+    private func row(_ e: AgendaItem, time: String, on: Bool, past: Bool) -> some View {
+        HStack(spacing: 10) {
+            Text(time).font(.system(size: 11, weight: on ? .semibold : .regular).monospacedDigit())
+                .foregroundStyle(.white.opacity(on ? 0.9 : 0.45))
+                .frame(width: 58, alignment: .trailing)
+            RoundedRectangle(cornerRadius: 1.5).fill(Color(hex: e.colorHex)).frame(width: 3, height: 30)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(presenting ? "Event" : e.title).font(.system(size: 13, weight: on ? .semibold : .regular)).lineLimit(1)
+                Text(e.allDay ? e.calendar : "until \(e.end.formatted(date: .omitted, time: .shortened))" + (e.calendar.isEmpty ? "" : " · \(e.calendar)"))
+                    .font(.system(size: 11).monospacedDigit()).foregroundStyle(.white.opacity(0.5)).lineLimit(1)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.vertical, 5).padding(.horizontal, 6)
+        .background(RoundedRectangle(cornerRadius: 10).fill(.white.opacity(on ? 0.1 : 0)))
+        .opacity(past ? 0.4 : 1)
+        .id(e.id)
+    }
+}
+
+private func span(_ e: AgendaItem) -> String {
+    "\(e.start.formatted(date: .omitted, time: .shortened)) – \(e.end.formatted(date: .omitted, time: .shortened))"
+}
+
+/// "45m", "1h 10m": a stretch of time, rounded up to the minute.
+func durationText(_ seconds: TimeInterval) -> String {
+    let minutes = max(Int((seconds / 60).rounded(.up)), 0)
+    return minutes >= 60 ? "\(minutes / 60)h \(minutes % 60)m" : "\(minutes)m"
+}
+
+/// A thin progress bar, as the brightness HUD's: a dim track, the filled part in the tint.
+struct LineBar: View {
+    let progress: Double
+    var tint: Color = .white
+
+    var body: some View {
+        GeometryReader { geo in
+            Capsule().fill(.white.opacity(0.16))
+                .overlay(alignment: .leading) {
+                    Capsule().fill(tint).frame(width: max(geo.size.height, geo.size.width * min(max(progress, 0), 1)))
+                }
+        }
     }
 }
 
