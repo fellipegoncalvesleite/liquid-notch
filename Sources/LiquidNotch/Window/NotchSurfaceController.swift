@@ -238,6 +238,7 @@ final class NotchSurfaceController {
             case .volume:
                 guard SystemVolume.set(level) else { return false }
                 if level == 0 { SystemVolume.setMuted(true) }   // like the keys: all the way down is mute
+                else if SystemVolume.muted { SystemVolume.setMuted(false) }
                 return true
             }
         }
