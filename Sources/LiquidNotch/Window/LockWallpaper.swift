@@ -698,9 +698,11 @@ final class LockWallpaper {
     /// lock card, as far from one as from the other, and at least 8 pt clear of the card with its lyrics open (the owner's
     /// screenshots, 11-07: half the screen's height ran under the clock and into the card; then, 24 pt under the clock and
     /// 80 above the card, "it feels off center").
-    nonisolated static func coverRect(in size: CGSize) -> CGRect {
+    /// `avatarHidden`: whether the lock screen hides the account photo and name (the card sits lower then); the system's
+    /// setting unless given (tests give it, so they don't depend on the Mac they run on).
+    nonisolated static func coverRect(in size: CGSize, avatarHidden: Bool = LockCardController.avatarHidden) -> CGRect {
         // Against the card as it is while the art is the wallpaper: without its own cover, shorter.
-        let window = LockCardController.frame(on: CGRect(origin: .zero, size: size))
+        let window = LockCardController.frame(on: CGRect(origin: .zero, size: size), avatarHidden: avatarHidden)
         let cardTop = window.minY + LockCardController.bare.height, lyricsTop = window.minY + LockCardController.bareLyrics.height
         let clock = size.height * (1 - clockBottom)
         let gap = max(lyricsTop + 8 - cardTop, 24)
@@ -711,10 +713,11 @@ final class LockWallpaper {
     /// The lock screen's background for a screen of `size`: the cover blurred to fill it and darkened a touch, at 2×.
     /// Scaled to cover the screen and centred on the sharp cover (it was anchored at the bottom left: owner, 11-07, "the
     /// blurred album behind is off center"). The desktop shows it too (`SongBackground`, `DesktopColors`).
-    nonisolated static func back(art cg: CGImage, size: CGSize) -> CGImage? {
+    nonisolated static func back(art cg: CGImage, size: CGSize,
+                                 avatarHidden: Bool = LockCardController.avatarHidden) -> CGImage? {
         let scale = 2.0, w = Int(size.width * scale), h = Int(size.height * scale)
         let ci = CIImage(cgImage: cg)
-        let place = coverRect(in: size)
+        let place = coverRect(in: size, avatarHidden: avatarHidden)
         let fill = max(Double(w) / ci.extent.width, Double(h) / ci.extent.height) * 1.25
         let dx = (Double(w) - ci.extent.width * fill) / 2, dy = place.midY * scale - ci.extent.height * fill / 2
         let blurred = ci.clampedToExtent()
@@ -734,11 +737,12 @@ final class LockWallpaper {
     /// the clock and the card with a soft shadow (`coverRect`; owner, 11-07: "a bit too small … and off center", then
     /// their screenshot of it running into both). Drawn at 2×; the composite is written as a JPEG for the store (it's
     /// mostly blur, and the agent reads it faster).
-    nonisolated static func parts(key: String, art cg: CGImage, size: CGSize, folder: URL, back: CGImage? = nil) -> Parts? {
+    nonisolated static func parts(key: String, art cg: CGImage, size: CGSize, folder: URL, back: CGImage? = nil,
+                                  avatarHidden: Bool = LockCardController.avatarHidden) -> Parts? {
         let scale = 2.0, w = Int(size.width * scale), h = Int(size.height * scale)
         let space = CGColorSpace(name: CGColorSpace.sRGB)!, info = CGImageAlphaInfo.premultipliedLast.rawValue
-        let place = coverRect(in: size)
-        guard let backImage = back ?? Self.back(art: cg, size: size),
+        let place = coverRect(in: size, avatarHidden: avatarHidden)
+        guard let backImage = back ?? Self.back(art: cg, size: size, avatarHidden: avatarHidden),
               let bc = CGContext(data: nil, width: w, height: h, bitsPerComponent: 8, bytesPerRow: 0, space: space, bitmapInfo: info)
         else { return nil }
         bc.draw(backImage, in: CGRect(x: 0, y: 0, width: w, height: h))

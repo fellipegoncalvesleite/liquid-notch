@@ -414,7 +414,7 @@ final class NotchSurfaceController {
             if director.mediaIsMusic { LockWallpaper.shared.lockMedia() } else {
                 if !lockArtSkipLogged {
                     lockArtSkipLogged = true
-                    Self.lockLog.notice("lock art: not music (\(self.director.nowPlaying?.bundleID ?? "?", privacy: .public), kind \(self.director.nowPlaying.map { "\($0.kind)" } ?? "none", privacy: .public))")
+                    Self.lockLog.notice("lock art: not music (\(self.director.nowPlaying?.bundleID ?? "?", privacy: .public), kind \(self.director.nowPlaying.map { "\($0.kind.map { "\($0)" } ?? "unknown")" } ?? "none", privacy: .public))")
                 }
                 LockWallpaper.shared.lockMediaLeft()
             }
