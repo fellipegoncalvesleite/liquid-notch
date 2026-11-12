@@ -449,9 +449,12 @@ public struct Island: Equatable, Sendable {
         if !opened { trayOver = false }
         // The empty notch's tray closes with its card, and gives way to anything that arrives (not to the activity it
         // was opened over).
-        if trayOpen && (!opened || mediaOn || (arrangement.ears != nil && !trayOver)) {
+        // A player can still exist while hidden by its own app or the user's Hide action. Only visible media
+        // replaces the standalone tools; otherwise converting to playerTools would close the card over empty ears.
+        let visibleMedia = arrangement.ears == .media
+        if trayOpen && (!opened || visibleMedia || (arrangement.ears != nil && !trayOver)) {
             trayOpen = false
-            if opened && mediaOn { playerTools = true }    // a song started under the open tray: the tools stay
+            if opened && visibleMedia { playerTools = true }    // a song appeared under the open tray: the tools stay
         }
         if playerTools && (!opened || cardOwner != .media || !mediaOn) { playerTools = false }
         if mediaFocus && (!opened || !(cardOwner == .media || cardOwner == .media2 && media2On) || !mediaOn) { mediaFocus = false }
@@ -841,7 +844,7 @@ public struct Island: Equatable, Sendable {
             return g
         }
         let own: Party? = mode == .card ? cardOwner : nil
-        let showMusic = mediaOn && (own.map { $0 == .media } ?? (a.ears == .media)) || media2On && own == .media2
+        let showMusic = !trayOpen && (mediaOn && (own.map { $0 == .media } ?? (a.ears == .media)) || media2On && own == .media2)
         var g = ContentGroups()
         g.musicEars = showMusic && mode != .hud && mode != .idle
         g.activityEars = activity != nil && a.ears == .activity && (mode == .compact || mode == .duo)

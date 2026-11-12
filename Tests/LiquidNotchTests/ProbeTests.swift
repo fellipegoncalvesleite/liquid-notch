@@ -200,6 +200,31 @@ final class ProbeTests: XCTestCase {
         d.pointerUp(at: SIMD2(380, 18), hit: .card, corridor: false)
     }
 
+    func testEmptyLookingNotchOpensToolsThroughPointerEvents() {
+        for hiddenMedia in [false, true] {
+            let (d, _) = director()
+            if hiddenMedia {
+                d.startMusic()
+                d.setContext(DesktopContext(frontmostApp: BundleID.music))
+            }
+            XCTAssertEqual(d.mode, .idle)
+            openCard(d)
+            XCTAssertEqual(d.mode, .card)
+            XCTAssertTrue(d.groups.tray)
+            XCTAssertFalse(d.groups.player)
+        }
+    }
+
+    func testHardwareLevelHUDWorksWithoutMedia() {
+        let (d, _) = director()
+        d.levelChanged(brightness: false, level: 0.5)
+        XCTAssertEqual(d.mode, .hud)
+        XCTAssertTrue(d.groups.hud)
+        d.levelChanged(brightness: true, level: 0.75)
+        XCTAssertEqual(d.island.hud, .brightness)
+        XCTAssertTrue(d.groups.hud)
+    }
+
     // PT11: the click that ends an opening press never closes the card it just opened.
     func testPT11OpeningPressKeepsTheCard() {
         let (d, _) = director()

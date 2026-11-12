@@ -20,6 +20,28 @@ final class TrayTests: XCTestCase {
         XCTAssertEqual(i.mode, .idle)
     }
 
+    func testMediaHiddenByItsOwnAppDoesNotImmediatelyCloseTheTools() {
+        var i = Island()
+        i.apply(.startMedia)
+        i.apply(.context(DesktopContext(frontmostApp: BundleID.music)))
+        XCTAssertEqual(i.mode, .idle)
+        XCTAssertTrue(i.canOpenEmptyTray)
+
+        i.apply(.openTray)
+        XCTAssertTrue(i.opened)
+        XCTAssertTrue(i.trayShows)
+        XCTAssertEqual(i.mode, .card)
+        XCTAssertTrue(i.groups(i.mode).tray)
+        XCTAssertFalse(i.groups(i.mode).player)
+        XCTAssertEqual(i.cardSize(player: player), player)
+
+        i.apply(.context(DesktopContext(frontmostApp: BundleID.music)))
+        XCTAssertTrue(i.trayShows, "a context refresh must leave the explicitly opened tools available")
+        i.apply(.context(DesktopContext()))
+        XCTAssertTrue(i.trayShows)
+        XCTAssertTrue(i.groups(i.mode).player, "when media becomes visible, the tools move beside the player")
+    }
+
     // One click for the music, two for the music and the tools (owner, 11-01).
     func testOneClickOpensThePlayerAloneASecondAddsTheTools() {
         var i = Island()
