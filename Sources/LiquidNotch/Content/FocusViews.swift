@@ -41,15 +41,28 @@ private struct FocusPlayerCard: View {
             LyricsList(director: director, style: .focus)
                 .frame(maxHeight: .infinity)
             FocusProgress(director: director)
-            HStack(spacing: 40) {
-                button("backward.fill", 22, "Previous track") { director.nextTrack(-1) }
-                button(director.playing ? "pause.fill" : "play.fill", 28, director.playing ? "Pause" : "Play") { director.togglePlaying() }
-                button("forward.fill", 22, "Next track") { director.nextTrack(1) }
+            ZStack {
+                HStack(spacing: 40) {
+                    button("backward.fill", 22, "Previous track") { director.nextTrack(-1) }
+                    button(director.playing ? "pause.fill" : "play.fill", 28, director.playing ? "Pause" : "Play") { director.togglePlaying() }
+                    button("forward.fill", 22, "Next track") { director.nextTrack(1) }
+                }
+                HStack {
+                    ModeButton.shuffle(director, size: 16)
+                    Spacer()
+                    ModeButton.repeating(director, size: 16)
+                }
             }
             .frame(maxWidth: .infinity)
+            // Volume across, the route picker at its end: the full player, as iPhone's Now Playing.
+            HStack(spacing: 14) {
+                VolumeSlider(director: director)
+                AirPlayButton(size: 26)
+            }
         }
         .foregroundStyle(.white)
-        .padding(.leading, left).padding(.trailing, 28).padding(.vertical, 26)
+        .padding(.leading, left).padding(.trailing, 28).padding(.vertical, 22)
+        .onAppear { director.refreshModes() }
     }
 
     private func button(_ symbol: String, _ size: Double, _ label: String, _ action: @escaping () -> Void) -> some View {

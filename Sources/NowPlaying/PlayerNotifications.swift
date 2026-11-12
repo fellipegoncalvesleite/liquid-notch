@@ -65,6 +65,50 @@ public enum PlayerNotifications {
         return "tell application \"\(app)\" to set player position to \(String(format: "%.2f", seconds))"
     }
 
+    /// AppleScript that turns shuffle on or off.
+    public static func shuffleScript(_ on: Bool, bundleID: String) -> String? {
+        switch bundleID {
+        case musicBundle: "tell application \"Music\" to set shuffle enabled to \(on)"
+        case spotifyBundle: "tell application \"Spotify\" to set shuffling to \(on)"
+        default: nil
+        }
+    }
+
+    /// AppleScript that sets the repeat mode. Spotify's is on or off (its "one" isn't scriptable): one and all both
+    /// turn it on.
+    public static func repeatScript(_ mode: NowPlaying.RepeatMode, bundleID: String) -> String? {
+        switch bundleID {
+        case musicBundle:
+            let m = switch mode { case .off: "off"; case .one: "one"; case .all: "all" }
+            return "tell application \"Music\" to set song repeat to \(m)"
+        case spotifyBundle: return "tell application \"Spotify\" to set repeating to \(mode != .off)"
+        default: return nil
+        }
+    }
+
+    /// AppleScript that answers "shuffle,repeat" (`true,all`, Spotify's repeat as `true`/`false`).
+    public static func modesScript(bundleID: String) -> String? {
+        switch bundleID {
+        case musicBundle: "tell application \"Music\" to (shuffle enabled as text) & \",\" & (song repeat as text)"
+        case spotifyBundle: "tell application \"Spotify\" to (shuffling as text) & \",\" & (repeating as text)"
+        default: nil
+        }
+    }
+
+    /// Reads `modesScript`'s answer.
+    public static func parseModes(_ out: String) -> (shuffle: Bool?, repeatMode: NowPlaying.RepeatMode?) {
+        let parts = out.trimmingCharacters(in: .whitespacesAndNewlines).lowercased().split(separator: ",").map(String.init)
+        guard parts.count == 2 else { return (nil, nil) }
+        let shuffle: Bool? = parts[0] == "true" ? true : parts[0] == "false" ? false : nil
+        let repeatMode: NowPlaying.RepeatMode? = switch parts[1] {
+        case "off", "false": .off
+        case "one": .one
+        case "all", "true": .all
+        default: nil
+        }
+        return (shuffle, repeatMode)
+    }
+
     /// AppleScript that answers the player's position in seconds.
     public static func positionScript(bundleID: String) -> String? {
         switch bundleID {

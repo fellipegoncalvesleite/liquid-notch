@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- **Shuffle and repeat in the player.** The player card has shuffle on the left and repeat beside AirPlay; repeat cycles off → all → one. They follow the player's own state (from Now Playing, or Music and Spotify by AppleScript) and work through the adapter for other players.
+- **Volume and AirPlay in the full player.** The lyrics view gets shuffle and repeat beside the controls and a volume slider with the AirPlay picker under them, like iPhone's Now Playing. Dragging the volume up from mute unmutes.
+
 ## 1.1.1
 
 - **No more repeated permission prompts.** If the music bars can't hear system audio, Liquid Notch stops asking again with every song. You can still turn it on from Setup.

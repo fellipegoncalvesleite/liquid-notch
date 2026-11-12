@@ -488,15 +488,18 @@ private struct PlayerCard: View {
                 .offset(x: 20, y: 93)
 
             ZStack {
-                HStack(spacing: 38) {
+                HStack(spacing: 32) {
                     PlayerButton(symbol: "backward.fill", size: 25, label: "Previous track") { director.nextTrack(-1) }
                     PlayerButton(symbol: director.playing ? "pause.fill" : "play.fill", size: 30,
                                  label: director.playing ? "Pause" : "Play") { director.togglePlaying() }
                     PlayerButton(symbol: "forward.fill", size: 25, label: "Next track") { director.nextTrack(1) }
                 }
-                // The system's own route picker (AirPlay speakers, headphones, this Mac).
-                HStack {
+                // Shuffle on the left; repeat and the system's own route picker (AirPlay speakers, headphones, this Mac)
+                // on the right.
+                HStack(spacing: 8) {
+                    ModeButton.shuffle(director, size: 15)
                     Spacer()
+                    ModeButton.repeating(director, size: 15)
                     AirPlayButton(size: 30)
                 }
             }
@@ -505,6 +508,7 @@ private struct PlayerCard: View {
         }
         .foregroundStyle(.white)
         .frame(width: card.width, height: card.height, alignment: .topLeading)
+        .onAppear { director.refreshModes() }
     }
 }
 
@@ -585,6 +589,85 @@ private struct PlayerProgress: View {
             guard length > 0 else { return }
             director.seek(to: director.elapsed + (direction == .increment ? 5 : -5))
         }
+    }
+}
+
+/// Shuffle or repeat: dim when off, white with a soft plate when on (as iPhone's), the repeat-one glyph for one.
+struct ModeButton: View {
+    let symbol: String
+    let on: Bool
+    let size: CGFloat
+    let label: String
+    let action: () -> Void
+
+    static func shuffle(_ d: IslandDirector, size: CGFloat) -> ModeButton {
+        let on = d.shuffle ?? false
+        return ModeButton(symbol: "shuffle", on: on, size: size, label: on ? "Shuffle on" : "Shuffle off") { d.toggleShuffle() }
+    }
+
+    static func repeating(_ d: IslandDirector, size: CGFloat) -> ModeButton {
+        let mode = d.repeatMode ?? .off
+        let label = switch mode { case .off: "Repeat off"; case .all: "Repeat all"; case .one: "Repeat one" }
+        return ModeButton(symbol: mode == .one ? "repeat.1" : "repeat", on: mode != .off, size: size, label: label) { d.cycleRepeat() }
+    }
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: size, weight: .semibold))
+                .contentTransition(.symbolEffect(.replace))
+                .foregroundStyle(on ? .white : .white.opacity(0.45))
+                .frame(width: size + 13, height: size + 11)
+                .background(RoundedRectangle(cornerRadius: 7).fill(.white.opacity(on ? 0.16 : 0)))
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(PressScaleStyle())
+        .focusEffectDisabled()
+        .animation(.easeOut(duration: 0.18), value: on)
+        .help(label)
+        .accessibilityLabel(label)
+    }
+}
+
+/// A volume slider, as iPhone's: speaker glyphs at both ends, press anywhere and drag; the level follows one to one.
+struct VolumeSlider: View {
+    let director: IslandDirector
+    @State private var drag: Double?
+    @State private var hovering = false
+
+    var body: some View {
+        let level = drag ?? director.volume
+        HStack(spacing: 10) {
+            Image(systemName: "speaker.fill").font(.system(size: 11))
+            GeometryReader { g in
+                let w = max(g.size.width, 1)
+                ZStack(alignment: .leading) {
+                    Capsule().fill(.white.opacity(0.18))
+                    Capsule().fill(.white.opacity(drag != nil ? 1 : 0.85)).frame(width: w * level)
+                }
+                .frame(height: drag != nil ? 8 : hovering ? 7 : 5)
+                .frame(maxHeight: .infinity)
+                .contentShape(Rectangle())
+                .onHover { hovering = $0 }
+                .gesture(DragGesture(minimumDistance: 0)
+                    .onChanged { v in
+                        if drag == nil { director.scrub(true) }
+                        let l = min(max(v.location.x / w, 0), 1)
+                        drag = l
+                        director.setPlayerVolume(l)
+                    }
+                    .onEnded { _ in drag = nil; director.scrub(false) })
+                .animation(.easeOut(duration: 0.14), value: drag != nil)
+            }
+            .frame(height: 18)
+            Image(systemName: "speaker.wave.3.fill").font(.system(size: 11))
+        }
+        .foregroundStyle(.white.opacity(0.55))
+        .onAppear { director.syncVolume() }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Volume")
+        .accessibilityValue("\(Int((level * 100).rounded())) percent")
+        .accessibilityAdjustableAction { dir in director.setPlayerVolume(director.volume + (dir == .increment ? 0.0625 : -0.0625)) }
     }
 }
 

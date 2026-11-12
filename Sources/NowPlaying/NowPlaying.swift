@@ -19,12 +19,30 @@ public struct NowPlaying: Equatable, Sendable {
     public var artwork: Data?
     /// What the player says it is (MediaRemote's media type), when it says.
     public var kind: Kind?
+    /// Shuffle on or off, when the player says (MediaRemote's shuffle mode; Music and Spotify by AppleScript).
+    public var shuffle: Bool?
+    /// The repeat mode, when the player says.
+    public var repeatMode: RepeatMode?
 
     public enum Kind: Sendable, Equatable { case audio, video }
 
+    /// Repeat, numbered as MediaRemote's (`MRARepeatMode`: what the adapter's `repeat` takes).
+    public enum RepeatMode: Int, Sendable, Equatable {
+        case off = 1, one = 2, all = 3
+
+        /// The next mode in the player's cycle: off → all → one → off (as Music and iPhone go).
+        public var next: RepeatMode {
+            switch self {
+            case .off: .all
+            case .all: .one
+            case .one: .off
+            }
+        }
+    }
+
     public init(title: String, artist: String = "", album: String = "", bundleID: String? = nil, playing: Bool,
                 duration: Double? = nil, elapsed: Double = 0, timestamp: Date = Date(), rate: Double = 1,
-                artwork: Data? = nil, kind: Kind? = nil) {
+                artwork: Data? = nil, kind: Kind? = nil, shuffle: Bool? = nil, repeatMode: RepeatMode? = nil) {
         self.title = title
         self.artist = artist
         self.album = album
@@ -36,6 +54,8 @@ public struct NowPlaying: Equatable, Sendable {
         self.rate = rate
         self.artwork = artwork
         self.kind = kind
+        self.shuffle = shuffle
+        self.repeatMode = repeatMode
     }
 
     /// Music, for what follows the album (the desktop's colours and strip, the strip's beat, the lock screen's art

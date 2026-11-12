@@ -195,4 +195,47 @@ final class NowPlayingTests: XCTestCase {
         XCTAssertEqual(s.main?.title, "Chess"); XCTAssertNil(s.second)
         XCTAssertNil(NowPlayingMonitor.split(primary: nil, alternate: song).main, "the adapter says nothing plays")
     }
+
+    // MARK: Shuffle and repeat
+
+    func testShuffleAndRepeatFromTheStream() {
+        var s = AdapterStream()
+        _ = s.consume(full)
+        let modes = #"{"type":"data","diff":true,"payload":{"shuffleMode":3,"repeatMode":2}}"#
+        guard case .nowPlaying(let np?) = s.consume(modes) else { return XCTFail("no state") }
+        XCTAssertEqual(np.shuffle, true)
+        XCTAssertEqual(np.repeatMode, .one)
+        let off = #"{"type":"data","diff":true,"payload":{"shuffleMode":1,"repeatMode":1}}"#
+        guard case .nowPlaying(let np2?) = s.consume(off) else { return XCTFail("no state") }
+        XCTAssertEqual(np2.shuffle, false)
+        XCTAssertEqual(np2.repeatMode, .off)
+    }
+
+    func testModesMissingAreUnknown() {
+        var s = AdapterStream()
+        guard case .nowPlaying(let np?) = s.consume(full) else { return XCTFail("no state") }
+        XCTAssertNil(np.shuffle)
+        XCTAssertNil(np.repeatMode)
+    }
+
+    func testRepeatCyclesLikeMusic() {
+        XCTAssertEqual(NowPlaying.RepeatMode.off.next, .all)
+        XCTAssertEqual(NowPlaying.RepeatMode.all.next, .one)
+        XCTAssertEqual(NowPlaying.RepeatMode.one.next, .off)
+    }
+
+    func testModesScriptsAndParsing() {
+        XCTAssertEqual(PlayerNotifications.shuffleScript(true, bundleID: "com.spotify.client"),
+                       "tell application \"Spotify\" to set shuffling to true")
+        XCTAssertEqual(PlayerNotifications.repeatScript(.one, bundleID: "com.apple.Music"),
+                       "tell application \"Music\" to set song repeat to one")
+        XCTAssertEqual(PlayerNotifications.repeatScript(.one, bundleID: "com.spotify.client"),
+                       "tell application \"Spotify\" to set repeating to true")
+        XCTAssertNil(PlayerNotifications.shuffleScript(true, bundleID: "com.google.Chrome"))
+        let music = PlayerNotifications.parseModes("true,all\n")
+        XCTAssertEqual(music.shuffle, true); XCTAssertEqual(music.repeatMode, .all)
+        let spotify = PlayerNotifications.parseModes("false,false")
+        XCTAssertEqual(spotify.shuffle, false); XCTAssertEqual(spotify.repeatMode, .off)
+        XCTAssertNil(PlayerNotifications.parseModes("").shuffle)
+    }
 }

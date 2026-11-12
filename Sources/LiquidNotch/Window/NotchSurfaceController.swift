@@ -132,6 +132,10 @@ final class NotchSurfaceController {
         director.sendCommandTo = { [weak self] c, app in self?.nowPlaying.send(c, to: app) }
         nowPlaying.onSecond = { [weak self] np in self?.director.nowPlaying2Changed(np) }
         director.sendSeek = { [weak self] seconds in self?.nowPlaying.seek(to: seconds) }
+        director.sendShuffle = { [weak self] on in self?.nowPlaying.setShuffle(on) }
+        director.sendRepeat = { [weak self] mode in self?.nowPlaying.setRepeat(mode) }
+        director.probeModes = { [weak self] done in self?.nowPlaying.probeModes(done) }
+        director.readVolume = { SystemVolume.muted ? 0 : SystemVolume.level }
         director.probePosition = { [weak self] done in self?.nowPlaying.probePosition(done) }
         director.openTrack = { [weak self] done in self?.nowPlaying.openTrack(link: { NSWorkspace.shared.open($0) }, done) ?? done(false) }
         // The desktop strip glows on the song's beat (`DesktopColors.audioFrame`, `BeatTracker`).
@@ -238,6 +242,7 @@ final class NotchSurfaceController {
             case .volume:
                 guard SystemVolume.set(level) else { return false }
                 if level == 0 { SystemVolume.setMuted(true) }   // like the keys: all the way down is mute
+                else if SystemVolume.muted { SystemVolume.setMuted(false) }
                 return true
             }
         }

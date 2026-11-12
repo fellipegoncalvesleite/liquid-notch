@@ -342,9 +342,73 @@ final class IslandDirector {
             clockFresh = at.timeIntervalSince(np.timestamp) < 0.5
         }
         lyricsLog.notice("report \(np.title, privacy: .public) playing=\(np.playing) elapsed=\(np.elapsed, format: .fixed(precision: 3)) age=\(at.timeIntervalSince(np.timestamp), format: .fixed(precision: 3)) est=\(np.elapsed(at: at), format: .fixed(precision: 3)) jump=\((before.map { np.elapsed(at: at) - $0 } ?? 0), format: .fixed(precision: 3))")
+        let playerChanged = nowPlaying?.bundleID != np.bundleID
         nowPlaying = np
+        adoptModes(from: np, playerChanged: playerChanged)
         guard !sampleOn else { return }
         applyRealMedia()
+    }
+
+    // MARK: Shuffle, repeat and volume in the player
+
+    /// Shuffle on or off, when the player says (nil: unknown; the button still toggles it).
+    private(set) var shuffle: Bool?
+    /// The repeat mode, when the player says.
+    private(set) var repeatMode: NowPlaying.RepeatMode?
+    @ObservationIgnored var sendShuffle: ((Bool) -> Void)?
+    @ObservationIgnored var sendRepeat: ((NowPlaying.RepeatMode) -> Void)?
+    /// Asks the player for its shuffle and repeat (AppleScript, Music and Spotify).
+    @ObservationIgnored var probeModes: ((@escaping @MainActor (Bool?, NowPlaying.RepeatMode?) -> Void) -> Void)?
+    /// A toggle answers at once; the player's own report can lag it, so for a moment the toggle wins.
+    @ObservationIgnored private var modesHeldUntil: Date?
+
+    private func adoptModes(from np: NowPlaying, playerChanged: Bool) {
+        if playerChanged { shuffle = nil; repeatMode = nil }
+        let held = modesHeldUntil.map { date() < $0 } ?? false
+        if !held {
+            if let s = np.shuffle { shuffle = s }
+            if let r = np.repeatMode { repeatMode = r }
+        }
+        if playerChanged, np.shuffle == nil || np.repeatMode == nil { refreshModes() }
+    }
+
+    /// Reads shuffle and repeat from the player where its Now Playing doesn't carry them.
+    func refreshModes() {
+        guard !sampleOn, nowPlaying != nil else { return }
+        probeModes? { [weak self] s, r in
+            guard let self, !(self.modesHeldUntil.map { self.date() < $0 } ?? false) else { return }
+            if let s { self.shuffle = s }
+            if let r { self.repeatMode = r }
+        }
+    }
+
+    func toggleShuffle() {
+        let on = !(shuffle ?? false)
+        shuffle = on
+        modesHeldUntil = date().addingTimeInterval(2)
+        kick(10)
+        if !sampleOn, nowPlaying != nil { sendShuffle?(on) }
+    }
+
+    func cycleRepeat() {
+        let mode = (repeatMode ?? .off).next
+        repeatMode = mode
+        modesHeldUntil = date().addingTimeInterval(2)
+        kick(10)
+        if !sampleOn, nowPlaying != nil { sendRepeat?(mode) }
+    }
+
+    /// The output volume, read when a player view appears (CoreAudio; nil when the output has none we can set).
+    @ObservationIgnored var readVolume: (() -> Double?)?
+
+    func syncVolume() {
+        if let v = readVolume?() { volume = v }
+    }
+
+    /// The player's volume slider: sets the system output volume, quietly (no HUD: the slider is the feedback).
+    func setPlayerVolume(_ level: Double) {
+        let l = min(max(level, 0), 1)
+        if setLevel?(.volume, l) ?? false { volume = l }
     }
 
     /// Opens the playing song in its player (`NowPlayingMonitor.openTrack`: Spotify's track, Music's reveal); false when it
