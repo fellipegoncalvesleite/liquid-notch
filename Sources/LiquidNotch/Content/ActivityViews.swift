@@ -158,11 +158,13 @@ struct ActivityEars: View {
             case (.recording, .right):
                 Text(clockText(s.recordSeconds)).font(IslandType.ear.monospacedDigit()).entrance(side, 0)
             case (.meeting, .left):
-                CalendarTile(size: 22).entrance(side, 0)
+                EventRing(meeting: director.meetingFor(instance), now: director.date()).entrance(side, 0)
             case (.meeting, .right):
-                let left = director.meetingLeft(instance)
-                Text(meetingText(left)).font(IslandType.ear.monospacedDigit())
-                    .foregroundStyle(left <= 60 ? IslandColor.orange : .white).entrance(side, 0)
+                // Before it starts, the time to the start; while it runs, the time left (red in the last 5 minutes).
+                let m = director.meetingFor(instance)
+                let state = EventRing.State(meeting: m, now: director.date())
+                Text(state.earText).font(IslandType.ear.monospacedDigit())
+                    .foregroundStyle(state.textColor).entrance(side, 0)
             case (.download, .left):
                 DownloadRing(progress: director.transferFor(instance).fraction).entrance(side, 0)
             case (.download, .right):
@@ -226,7 +228,7 @@ struct ActivityGlyph: View {
         case .charging: Image(systemName: "bolt.fill").font(.system(size: 14)).foregroundStyle(IslandColor.green)
         case .timer: TimerRing(left: s.timerLeft, total: s.timerTotal)
         case .recording: RecordDot()
-        case .meeting: CalendarTile(size: 20)
+        case .meeting: EventRing(meeting: director.meetingFor(instance), now: director.date())
         case .download: DownloadRing(progress: director.transferFor(instance).fraction)
         case .messages: MessagesIcon(size: 20)
         case .recordCountdown: RecordDot()
@@ -529,7 +531,7 @@ private struct MeetingCard: View {
                 VStack(alignment: .leading, spacing: 0) {
                     // The title is private while presenting.
                     Text(presenting ? "Event" : m.title).font(IslandType.title).lineLimit(1)
-                    Text(time + " · " + (left <= 0 ? "now" : meetingText(left)))
+                    Text(time + " · " + (left <= 0 ? EventRing.State(meeting: m, now: director.date()).earText : meetingText(left)))
                         .font(IslandType.secondary.monospacedDigit()).foregroundStyle(IslandColor.secondary)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -813,6 +815,49 @@ struct Ring<Inner: View>: View {
 extension Ring where Inner == EmptyView {
     init(progress: Double, color: Color, size: Double, stroke: Double = 3.4, fillsIn: Bool = false) {
         self.init(progress: progress, color: color, size: size, stroke: stroke, fillsIn: fillsIn) { EmptyView() }
+    }
+}
+
+/// A calendar event as a ring (the ball beside the music, or the left ear): before it starts, an orange ring filling
+/// toward the start over the 10-minute lead; while it runs, the event's calendar colour emptying as its time runs out;
+/// red in its last 5 minutes. The same `Ring` the timer and downloads use, so every ball reads alike.
+struct EventRing: View {
+    let meeting: MeetingInfo
+    let now: Date
+
+    struct State {
+        let progress: Double
+        let color: Color
+        let earText: String
+        let textColor: Color
+
+        init(meeting m: MeetingInfo, now: Date) {
+            let toStart = m.start.timeIntervalSince(now)
+            if toStart > 0 {
+                progress = 1 - min(toStart / MeetingWatcher.lead, 1)
+                color = IslandColor.orange
+                earText = "in \(Int((toStart / 60).rounded(.up))) min"
+                textColor = toStart <= 60 ? IslandColor.orange : .white
+                return
+            }
+            let total = max(m.end.timeIntervalSince(m.start), 1)
+            let left = max(m.end.timeIntervalSince(now), 0)
+            let ending = left <= 300
+            progress = left / total
+            color = ending ? IslandColor.red : (m.colorHex.isEmpty ? IslandColor.blue : Color(hex: m.colorHex))
+            let minutes = Int((left / 60).rounded(.up))
+            earText = minutes >= 60 ? "\(minutes / 60)h \(minutes % 60)m" : "\(minutes)m left"
+            textColor = ending ? IslandColor.red : .white
+        }
+    }
+
+    var body: some View {
+        let s = State(meeting: meeting, now: now)
+        Ring(progress: s.progress, color: s.color, size: 22) {
+            Image(systemName: "calendar").font(.system(size: 8, weight: .bold)).foregroundStyle(s.color)
+        }
+        .accessibilityElement()
+        .accessibilityLabel("\(meeting.title), \(s.earText)")
     }
 }
 

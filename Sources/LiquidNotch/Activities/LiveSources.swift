@@ -86,7 +86,7 @@ final class MeetingWatcher {
     /// Starts already announced (event id + start), and when the last check ran.
     private var announced: Set<String> = []
     private var lastCheck = Date()
-    static let lead: TimeInterval = 600
+    nonisolated static let lead: TimeInterval = 600
 
     func start() {
         observers.append(NotificationCenter.default.addObserver(forName: .EKEventStoreChanged, object: store, queue: .main) { [weak self] _ in
@@ -157,13 +157,17 @@ final class MeetingWatcher {
         return MeetingInfo(title: e.title ?? "Event", start: e.startDate, end: e.endDate,
                            joinURL: MeetingInfo.joinLink(in: [e.url?.absoluteString, e.location, e.notes]),
                            initials: names.prefix(3).map(MeetingInfo.initials), more: max(names.count - 3, 0),
-                           calendar: e.calendar?.title.trimmingCharacters(in: .whitespaces) ?? "")
+                           calendar: e.calendar?.title.trimmingCharacters(in: .whitespaces) ?? "",
+                           colorHex: hex(of: e))
+    }
+
+    private static func hex(of e: EKEvent) -> String {
+        guard let c = e.calendar?.cgColor.flatMap({ NSColor(cgColor: $0)?.usingColorSpace(.sRGB) }) else { return "" }
+        return String(format: "#%02X%02X%02X", Int(c.redComponent * 255), Int(c.greenComponent * 255), Int(c.blueComponent * 255))
     }
 
     private static func agendaItem(_ e: EKEvent) -> AgendaItem {
-        let color = e.calendar?.cgColor.flatMap { NSColor(cgColor: $0)?.usingColorSpace(.sRGB) }
-        let hex = color.map { String(format: "#%02X%02X%02X", Int($0.redComponent * 255), Int($0.greenComponent * 255),
-                                     Int($0.blueComponent * 255)) } ?? "#8E8E93"
+        let hex = hex(of: e).isEmpty ? "#8E8E93" : hex(of: e)
         return AgendaItem(id: "\(e.eventIdentifier ?? UUID().uuidString)@\(e.startDate.timeIntervalSince1970)",
                           title: e.title ?? "Event", start: e.startDate, end: e.endDate, allDay: e.isAllDay,
                           calendar: e.calendar?.title.trimmingCharacters(in: .whitespaces) ?? "", colorHex: hex)

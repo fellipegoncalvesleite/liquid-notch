@@ -136,6 +136,8 @@ struct MeetingInfo: Equatable, Sendable {
     /// The event's calendar ("Work", "Hostal Mess"), and how many other events are on at the same time.
     var calendar: String = ""
     var alsoNow: Int = 0
+    /// The calendar's colour (the ring's, while the event runs); empty: the island's blue.
+    var colorHex: String = ""
 
     /// The first video-call link in the event's URL, notes or location.
     static func joinLink(in texts: [String?]) -> URL? {
