@@ -3,6 +3,9 @@
 ## Unreleased
 
 - **Shuffle and repeat in the player.** The player card has shuffle on the left and repeat beside AirPlay; repeat cycles off → all → one. They follow the player's own state (from Now Playing, or Music and Spotify by AppleScript) and work through the adapter for other players.
+- **Scroll on the island.** Scroll down on the notch (two fingers or the wheel) to open the player, scroll again for the tools; scroll up to close. Lists inside (lyrics, Clipboard, Shelf) still scroll as before.
+- **A Tools button on the player**, and Tools and Player & Lyrics in the right-click menu: the tools were only a double-click on the notch itself away while music played. The right-click menu is grouped into Island, Appearance and Liquid Notch.
+- **Click Opens Lyrics** (right-click menu, off by default): a click on the music opens the big player straight away.
 - **Volume and AirPlay in the full player.** The lyrics view gets shuffle and repeat beside the controls and a volume slider with the AirPlay picker under them, like iPhone's Now Playing. Dragging the volume up from mute unmutes.
 
 ## 1.1.1

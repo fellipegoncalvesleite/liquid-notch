@@ -135,6 +135,7 @@ final class NotchSurfaceController {
         director.sendShuffle = { [weak self] on in self?.nowPlaying.setShuffle(on) }
         director.sendRepeat = { [weak self] mode in self?.nowPlaying.setRepeat(mode) }
         director.probeModes = { [weak self] done in self?.nowPlaying.probeModes(done) }
+        director.clickOpensFocus = { UserDefaults.standard.bool(forKey: "clickOpensFocus") }
         director.readVolume = { SystemVolume.muted ? 0 : SystemVolume.level }
         director.probePosition = { [weak self] done in self?.nowPlaying.probePosition(done) }
         director.openTrack = { [weak self] done in self?.nowPlaying.openTrack(link: { NSWorkspace.shared.open($0) }, done) ?? done(false) }
@@ -686,6 +687,17 @@ final class NotchSurfaceController {
         if let l = NSEvent.addLocalMonitorForEvents(matching: mask, handler: { [weak self] e in
             self?.updateMouse()
             return e
+        }) { monitors.append(l) }
+        // Scrolling on the island steps through it (player, then tools); elsewhere it scrolls what's under it.
+        if let l = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel, handler: { [weak self] e in
+            guard let self, e.window === panel else { return e }
+            let raw = Double(e.scrollingDeltaY)
+            guard raw != 0 || e.phase == .began else { return e }
+            // Natural scrolling flips the deltas: fingers moving down pull the content down either way.
+            let pull = e.isDirectionInvertedFromDevice ? raw : -raw
+            let used = director.scrolled(pull: pull, precise: e.hasPreciseScrollingDeltas, began: e.phase == .began,
+                                         momentum: !e.momentumPhase.isEmpty, hit: hit(panelPoint(NSEvent.mouseLocation)))
+            return used ? nil : e
         }) { monitors.append(l) }
         // A right-click on the island opens the app's menu, except while the reply field is typing
         // (the panel is key only then) so the text menu still works there.

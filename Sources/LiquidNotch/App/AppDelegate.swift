@@ -110,6 +110,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if surface?.director.island.mediaOn == true {
             menu.addItem(withTitle: "Player & Lyrics", action: #selector(openPlayerFocus), keyEquivalent: "").target = self
         }
+        let focusClick = menu.addItem(withTitle: "Click Opens Lyrics", action: #selector(toggleClickOpensFocus(_:)), keyEquivalent: "")
+        focusClick.target = self
+        focusClick.state = UserDefaults.standard.bool(forKey: "clickOpensFocus") ? .on : .off
+        focusClick.toolTip = "A click on the music opens the big player with lyrics. Scroll down on the island for the small player and the tools."
         // Timers start here (11-01 design): the island itself doesn't change.
         let timer = NSMenu()
         for minutes in [1, 5, 10, 25] {
@@ -156,6 +160,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(withTitle: "Uninstall Liquid Notch…", action: #selector(uninstall), keyEquivalent: "").target = self
         menu.addItem(withTitle: "Quit Liquid Notch", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         return menu
+    }
+
+    @objc private func toggleClickOpensFocus(_ sender: NSMenuItem) {
+        UserDefaults.standard.set(sender.state != .on, forKey: "clickOpensFocus")
     }
 
     @objc private func openTools() { surface?.director.openTray() }

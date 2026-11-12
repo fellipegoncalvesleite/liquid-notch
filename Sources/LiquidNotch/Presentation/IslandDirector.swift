@@ -2339,6 +2339,13 @@ final class IslandDirector {
             // Opens on the press itself, so the liquid answers the instant the button goes down.
             // The click that ends this press belongs to it (the ears retract under the pointer).
             let party = pickCard(hit)
+            // A click on the music goes straight to the big player (the small card is a scroll or a hover away).
+            if clickOpensFocus(), party == .media, island.mediaOn, !island.context.locked {
+                openFocus()
+                pressOpenedAt = island.opened ? realTime() : nil
+                suppressClick = true
+                return
+            }
             open(party)
             pressOpenedAt = island.opened ? realTime() : nil
             suppressClick = true
@@ -2363,6 +2370,53 @@ final class IslandDirector {
         hoverOff?.cancel(); hoverOff = nil
         pressed = true
         changed()
+    }
+
+    /// The right-click menu's Click Opens Lyrics: a click on the music opens the big player rather than the card.
+    @ObservationIgnored var clickOpensFocus: () -> Bool = { false }
+
+    // MARK: Scrolling on the island
+
+    /// Two-finger scroll (or the wheel) on the island steps through it: pulling down opens the player, again adds the
+    /// tools; pushing up closes. One step per gesture: the rest of the gesture (and its momentum) does nothing.
+    @ObservationIgnored private var scrollAccum = 0.0
+    @ObservationIgnored private var scrollSpent = false
+    @ObservationIgnored private var scrollLast = 0.0
+    /// How far a trackpad scroll goes for one step (points).
+    nonisolated static let scrollStep = 26.0
+
+    /// `pull`: positive when the content would be pulled down (fingers moving down). Answers whether it was ours.
+    func scrolled(pull: Double, precise: Bool, began: Bool, momentum: Bool, hit: HitRegion?) -> Bool {
+        guard forcedMode == nil, hit != nil || island.opened, !island.context.locked else { return false }
+        // Lists scroll themselves: the lyrics, a tray page (Clipboard, Shelf…), a chat or any other card's content.
+        if island.opened {
+            let playerCard = island.cardOwner == .media && island.mediaOn && !island.mediaFocus
+            guard playerCard, !island.trayShows || tray.page == .main else { return false }
+        }
+        let t = realTime()
+        // A new gesture (or, for a wheel, a pause) starts a new step.
+        if began || (!precise && t - scrollLast > 0.35) { scrollAccum = 0; scrollSpent = false }
+        scrollLast = t
+        if momentum || scrollSpent { return true }
+        scrollAccum += precise ? pull : pull * Self.scrollStep
+        guard abs(scrollAccum) >= Self.scrollStep else { return true }
+        let down = scrollAccum > 0
+        scrollAccum = 0
+        scrollSpent = true
+        if down { scrollDeeper(hit) } else if island.opened { send(.close) }
+        return true
+    }
+
+    private func scrollDeeper(_ hit: HitRegion?) {
+        if !island.opened {
+            let party = pickCard(hit)
+            if party == .media, island.mediaOn { open(.media) }
+            else if island.arrangement.ears == nil || !island.mediaOn { openTray() }
+            else { open(party) }
+            return
+        }
+        if island.mediaFocus { return }
+        if !island.trayShows { openTray() }
     }
 
     func pointerDragged(to p: SIMD2<Double>) {
