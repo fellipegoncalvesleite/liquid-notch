@@ -153,4 +153,36 @@ final class TrayTests: XCTestCase {
         i.apply(.context(DesktopContext(menuOpen: true)))
         XCTAssertFalse(i.trayOpen)
     }
+
+    // The scroll's steps with a song: the player, then the tools alone in its place (the player's size), then back.
+    func testToolsOnlyTakeThePlayersPlaceAndStepBack() {
+        var i = Island()
+        i.apply(.startMedia)
+        i.apply(.open(.media))
+        XCTAssertTrue(i.groups(.card).player)
+        i.apply(.openToolsOnly)
+        XCTAssertTrue(i.trayShows)
+        XCTAssertTrue(i.toolsOnly)
+        XCTAssertTrue(i.groups(.card).tray)
+        XCTAssertFalse(i.groups(.card).player, "the tools alone, no player beside them")
+        XCTAssertEqual(i.cardSize(player: player), player)
+        i.apply(.closeTools)
+        XCTAssertTrue(i.opened)
+        XCTAssertFalse(i.trayShows)
+        XCTAssertFalse(i.toolsOnly)
+        XCTAssertTrue(i.groups(.card).player)
+        i.apply(.close)
+        XCTAssertFalse(i.opened)
+    }
+
+    // The double-click's tools stay beside the player.
+    func testOpenTrayWithASongStillPutsTheToolsBeside() {
+        var i = Island()
+        i.apply(.startMedia)
+        i.apply(.open(.media))
+        i.apply(.openTray)
+        XCTAssertFalse(i.toolsOnly)
+        XCTAssertTrue(i.groups(.card).player)
+        XCTAssertTrue(i.groups(.card).tray)
+    }
 }

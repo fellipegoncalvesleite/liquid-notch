@@ -143,7 +143,7 @@ public struct ActivitySpec: Sendable {
                          card: CardSize(width: 372, height: 138, radius: 40), transient: nil, opens: false,
                          pulse: nil, colorHex: red),
             ActivitySpec(id: .meeting, tier: .ongoing, ear: 80,
-                         card: CardSize(width: 372, height: 126, radius: 40), transient: nil, opens: false,
+                         card: CardSize(width: 372, height: 142, radius: 40), transient: nil, opens: false,
                          pulse: nil, colorHex: "#0A84FF"),
             // The camera is on (11-01 design, the filming indicator): waits in the bubble while music plays.
             ActivitySpec(id: .camera, tier: .ongoing, ear: 80,

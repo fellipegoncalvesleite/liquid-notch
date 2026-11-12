@@ -1607,6 +1607,16 @@ final class IslandDirector {
     }
 
     /// Opens the tray at a page: the empty notch's tools, or the player's card with them. Not over an activity's ears.
+    /// The tools on their own, in the player's place (the scroll's second step, the player's Tools button).
+    func openToolsOnly() {
+        guard forcedMode == nil else { return }
+        guard island.mediaOn, island.opened, island.cardOwner == .media else { openTray(); return }
+        tray.nextPage = .main
+        hoverOff?.cancel(); hoverOff = nil
+        send(.openToolsOnly)
+        if groups.tray { onPulse?(eventColor) } else { tray.nextPage = .main }
+    }
+
     func openTray(at page: TrayModel.Page = .main) {
         guard forcedMode == nil else { return }
         if groups.tray { if page != .main { tray.go(page) }; return }
@@ -2420,7 +2430,8 @@ final class IslandDirector {
         let down = scrollAccum > 0
         scrollAccum = 0
         scrollSpent = true
-        if down { scrollDeeper(hit) } else if island.opened { send(.close) }
+        if down { scrollDeeper(hit) } else if island.trayShows && island.toolsOnly { send(.closeTools) }
+        else if island.opened { send(.close) }
         return true
     }
 
@@ -2433,7 +2444,8 @@ final class IslandDirector {
             return
         }
         if island.mediaFocus { return }
-        if !island.trayShows { openTray() }
+        // The second step: the main menu on its own, in the player's place.
+        if !island.trayShows { openToolsOnly() }
     }
 
     func pointerDragged(to p: SIMD2<Double>) {

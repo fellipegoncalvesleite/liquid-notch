@@ -520,31 +520,42 @@ private struct MeetingCard: View {
 
     private static let palette: [(String, String)] = [("#FF9F6B", "#E0567A"), ("#7FD1FF", "#2F7BE0"), ("#B6F09C", "#35A869")]
 
+    /// Like the match card: what it is and when on top with the big figure (time left, or to the start), the event's
+    /// progress as a bar, then who's in it and Join, or its calendar and what else is on.
     var body: some View {
         let m = director.meetingFor(instance)
-        let left = director.meetingLeft(instance)
+        let now = director.date()
+        let state = EventRing.State(meeting: m, now: now)
         let time = "\(m.start.formatted(date: .omitted, time: .shortened)) – \(m.end.formatted(date: .omitted, time: .shortened))"
         let canJoin = director.isSample(instance) || m.joinURL != nil
+        let people = !m.initials.isEmpty
         VStack(spacing: 10) {
             HStack(spacing: 12) {
-                CalendarTile(size: 40)
+                EventRing(meeting: m, now: now, size: 40)
                 VStack(alignment: .leading, spacing: 0) {
                     // The title is private while presenting.
                     Text(presenting ? "Event" : m.title).font(IslandType.title).lineLimit(1)
-                    Text(time + " · " + (left <= 0 ? EventRing.State(meeting: m, now: director.date()).earText : meetingText(left)))
-                        .font(IslandType.secondary.monospacedDigit()).foregroundStyle(IslandColor.secondary)
+                    Text(time).font(IslandType.secondary.monospacedDigit()).foregroundStyle(IslandColor.secondary)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
+                VStack(alignment: .trailing, spacing: 0) {
+                    Text(state.figure).font(.system(size: 22, weight: .semibold).monospacedDigit())
+                        .foregroundStyle(state.textColor)
+                        .contentTransition(.numericText())
+                    Text(state.started ? "left" : "to start").font(.system(size: 11)).foregroundStyle(IslandColor.dim)
+                }
             }
             .rise(0)
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(.white.opacity(0.14))
+                    Capsule().fill(state.color.opacity(0.9)).frame(width: geo.size.width * state.elapsed)
+                }
+            }
+            .frame(height: 4)
+            .rise(1)
             HStack {
-                if m.initials.isEmpty {
-                    // An event without people (a class, lunch): its calendar, and what else is on now.
-                    let others = m.alsoNow > 0 ? "+\(m.alsoNow) more now" : ""
-                    let line = [m.calendar, others].filter { !$0.isEmpty }.joined(separator: " · ")
-                    Text(line.isEmpty ? (canJoin ? "" : "No call link") : line)
-                        .font(IslandType.secondary).foregroundStyle(IslandColor.secondary).lineLimit(1)
-                } else {
+                if people {
                     HStack(spacing: -2) {
                         ForEach(Array(m.initials.enumerated()), id: \.offset) { i, initials in
                             Avatar(initials: initials, colors: Self.palette[i % Self.palette.count], size: 28, ring: true)
@@ -553,6 +564,11 @@ private struct MeetingCard: View {
                             Text("+\(m.more)").font(IslandType.secondary).foregroundStyle(IslandColor.secondary).padding(.leading, 10)
                         }
                     }
+                } else {
+                    // An event without people (a class, lunch): its calendar, and what else is on now.
+                    let others = m.alsoNow > 0 ? "+\(m.alsoNow) more now" : ""
+                    Text([m.calendar, others].filter { !$0.isEmpty }.joined(separator: " · "))
+                        .font(IslandType.secondary).foregroundStyle(IslandColor.secondary).lineLimit(1)
                 }
                 Spacer()
                 if canJoin {
@@ -568,10 +584,13 @@ private struct MeetingCard: View {
                     }
                     .buttonStyle(PressScaleStyle(pressed: 0.94, hover: 1.04))
                     .accessibilityLabel("Join")
+                } else if !people {
+                    Text("ends \(m.end.formatted(date: .omitted, time: .shortened))")
+                        .font(IslandType.secondary.monospacedDigit()).foregroundStyle(IslandColor.dim)
                 }
             }
-            .frame(height: 32)
-            .rise(1)
+            .frame(height: people || canJoin ? 32 : 16)
+            .rise(2)
         }
         .frame(maxHeight: .infinity)
     }
@@ -824,12 +843,18 @@ extension Ring where Inner == EmptyView {
 struct EventRing: View {
     let meeting: MeetingInfo
     let now: Date
+    var size = 22.0
 
     struct State {
         let progress: Double
         let color: Color
         let earText: String
         let textColor: Color
+        /// How much of the event has gone (0 before it starts), for the card's bar.
+        var elapsed = 0.0
+        var started = false
+        /// The card's big figure: "45m", "1h 10m", or the minutes to the start.
+        var figure = ""
 
         init(meeting m: MeetingInfo, now: Date) {
             let toStart = m.start.timeIntervalSince(now)
@@ -838,6 +863,7 @@ struct EventRing: View {
                 color = IslandColor.orange
                 earText = "in \(Int((toStart / 60).rounded(.up))) min"
                 textColor = toStart <= 60 ? IslandColor.orange : .white
+                figure = "\(Int((toStart / 60).rounded(.up)))m"
                 return
             }
             let total = max(m.end.timeIntervalSince(m.start), 1)
@@ -848,13 +874,16 @@ struct EventRing: View {
             let minutes = Int((left / 60).rounded(.up))
             earText = minutes >= 60 ? "\(minutes / 60)h \(minutes % 60)m" : "\(minutes)m left"
             textColor = ending ? IslandColor.red : .white
+            elapsed = 1 - progress
+            started = true
+            figure = minutes >= 60 ? "\(minutes / 60)h \(minutes % 60)m" : "\(minutes)m"
         }
     }
 
     var body: some View {
         let s = State(meeting: meeting, now: now)
-        Ring(progress: s.progress, color: s.color, size: 22) {
-            Image(systemName: "calendar").font(.system(size: 8, weight: .bold)).foregroundStyle(s.color)
+        Ring(progress: s.progress, color: s.color, size: size) {
+            Image(systemName: "calendar").font(.system(size: size * 0.36, weight: .bold)).foregroundStyle(s.color)
         }
         .accessibilityElement()
         .accessibilityLabel("\(meeting.title), \(s.earText)")

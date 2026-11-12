@@ -216,6 +216,11 @@ public enum IslandEvent: Sendable, Equatable {
     /// click on the player, owner 11-01: one click for the music, two for the music and the tools).
     /// Over an activity, Claude or Codex in the ears, the tools open and it waits in a ball (owner, 11-11).
     case openTray
+    /// The tools on their own, in the player's place (a second scroll on the island, or the player's Tools button):
+    /// the main menu without the player beside it. Without music it's the plain tray.
+    case openToolsOnly
+    /// From the tools back to the player (a scroll up).
+    case closeTools
     /// Double-click on the music (owner, 11-07): the player grows into the focused view with the lyrics.
     case focusMedia
     case close
@@ -277,6 +282,8 @@ public struct Island: Equatable, Sendable {
     public private(set) var askOpen: AgentProvider?
     /// The player's card shows the tray's tools beside it.
     public private(set) var playerTools = false
+    /// The tools fill the card on their own (`openToolsOnly`): the player is hidden while they show.
+    public private(set) var toolsOnly = false
     /// The tray is open over whatever holds the ears (an activity, Claude or Codex), which waits in a ball meanwhile: the
     /// card is the tray's (sim `notesOver`).
     public private(set) var trayOver = false
@@ -400,6 +407,12 @@ public struct Island: Equatable, Sendable {
             hovered = true
             peekBall = nil
             questionOnly = false
+        case .openToolsOnly:
+            apply(.openTray)
+            toolsOnly = playerTools
+        case .closeTools:
+            guard opened, playerTools || trayOpen else { break }
+            if playerTools { playerTools = false; toolsOnly = false } else { apply(.close) }
         case .focusMedia:
             guard mediaOn, !context.menuOpen, !context.fullscreen, hud == nil else { break }
             // The open card's player (the second one's, from its ball), else the main one.
@@ -457,6 +470,7 @@ public struct Island: Equatable, Sendable {
             if opened && visibleMedia { playerTools = true }    // a song appeared under the open tray: the tools stay
         }
         if playerTools && (!opened || cardOwner != .media || !mediaOn) { playerTools = false }
+        if !playerTools { toolsOnly = false }
         if mediaFocus && (!opened || !(cardOwner == .media || cardOwner == .media2 && media2On) || !mediaOn) { mediaFocus = false }
         if !mediaFocus { focusVideo = false }
         if !opened { questionOnly = false; askOpen = nil }
@@ -784,6 +798,7 @@ public struct Island: Equatable, Sendable {
         var p = player
         if trayShows, let h = trayHeight { p.height = max(p.height, h) }
         guard mediaOn, playerTools else { return p }
+        if toolsOnly { return p }   // the tools in the player's place: the player's size
         return CardSize(width: p.width + trayColumn, height: p.height, radius: p.radius)
     }
 
@@ -858,7 +873,7 @@ public struct Island: Equatable, Sendable {
         if let p = peekBall, p != .more, mode == .duo || mode == .peek, let i = g.balls.firstIndex(of: p) { g.peekPlace = i }
         g.hud = mode == .hud
         g.peek = showMusic && mode == .peek
-        g.player = showMusic && (mode == .expanded || mode == .card)
+        g.player = showMusic && (mode == .expanded || (mode == .card && !(toolsOnly && playerTools)))
         g.tray = mode == .card && own == .media && (trayOpen || (mediaOn && playerTools))
         if g.player && mode == .card && mediaFocus {
             g.player = false; g.tray = false

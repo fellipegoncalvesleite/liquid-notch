@@ -486,7 +486,7 @@ private struct PlayerCard: View {
 
             // The tools, in sight (a double-click on the notch itself also opens them, but nothing on screen said so):
             // left of the music bars, which ride into the top right corner.
-            ToolsButton { director.openTray() }
+            ToolsButton { director.openToolsOnly() }
                 .offset(x: card.width - 64 - Self.toolsRoom, y: 24)
 
             // The row is the scrubber's 20 pt target tall, so it sits 3 pt higher to keep the bar where it was.
