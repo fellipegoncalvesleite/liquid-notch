@@ -102,6 +102,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             case .separator: menu.addItem(.separator())
             }
         }
+        // Grouped (players asked "where do I click": the flat list read as random): what the island can open, how it
+        // looks, the app.
+        if menu.items.count > 0 { menu.addItem(.separator()) }
+        menu.addItem(.sectionHeader(title: "Island"))
+        menu.addItem(withTitle: "Tools", action: #selector(openTools), keyEquivalent: "").target = self
+        if surface?.director.island.mediaOn == true {
+            menu.addItem(withTitle: "Player & Lyrics", action: #selector(openPlayerFocus), keyEquivalent: "").target = self
+        }
         // Timers start here (11-01 design): the island itself doesn't change.
         let timer = NSMenu()
         for minutes in [1, 5, 10, 25] {
@@ -109,7 +117,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             item.target = self
             item.tag = minutes
         }
-        menu.addItem(withTitle: "Timer", action: nil, keyEquivalent: "").submenu = timer
+        menu.addItem(withTitle: "Start Timer", action: nil, keyEquivalent: "").submenu = timer
+
+        menu.addItem(.separator())
+        menu.addItem(.sectionHeader(title: "Appearance"))
         // The music bars follow what's playing, or animate (owner, 11-06).
         let bars = NSMenu()
         for mode in AudioBars.Mode.allCases {
@@ -122,8 +133,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(withTitle: "Music Bars", action: nil, keyEquivalent: "").submenu = bars
         // Which screen, and real or virtual notch (11-11).
         NotchMenu.shared.add(to: menu)
+
         menu.addItem(.separator())
-        menu.addItem(withTitle: "Setup…", action: #selector(showSetup), keyEquivalent: "").target = self
+        menu.addItem(.sectionHeader(title: "Liquid Notch"))
+        menu.addItem(withTitle: "Setup & Permissions…", action: #selector(showSetup), keyEquivalent: ",").target = self
+        let login = menu.addItem(withTitle: "Open at Login", action: #selector(toggleLogin(_:)), keyEquivalent: "")
+        login.target = self
+        login.state = SMAppService.mainApp.status == .enabled ? .on : .off
+        NotchMenu.shared.addUpdates(to: menu)
         // AirPane (11-11): opens its site, or AirPane itself once it's here.
         let paired = AirPane.installed
         let airPane = menu.addItem(withTitle: paired ? "Paired with AirPane" : "Pair with AirPane", action: #selector(openAirPane),
@@ -135,14 +152,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if NSEvent.modifierFlags.contains(.option) || CommandLine.arguments.contains("--debug") {
             menu.addItem(withTitle: "Debug Panel", action: #selector(toggleDebug), keyEquivalent: "d").target = self
         }
-        let login = menu.addItem(withTitle: "Open at Login", action: #selector(toggleLogin(_:)), keyEquivalent: "")
-        login.target = self
-        login.state = SMAppService.mainApp.status == .enabled ? .on : .off
         menu.addItem(.separator())
         menu.addItem(withTitle: "Uninstall Liquid Notch…", action: #selector(uninstall), keyEquivalent: "").target = self
         menu.addItem(withTitle: "Quit Liquid Notch", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         return menu
     }
+
+    @objc private func openTools() { surface?.director.openTray() }
+    @objc private func openPlayerFocus() { surface?.director.openFocus() }
 
     func applicationWillTerminate(_ notification: Notification) {
         LockWallpaper.shared.restoreOnQuit()   // never leave someone's wallpaper behind

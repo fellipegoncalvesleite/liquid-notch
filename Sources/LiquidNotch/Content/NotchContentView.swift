@@ -457,6 +457,8 @@ private struct PlayerCard: View {
     let card: CardSize
     /// How far the record peeks out of its sleeve (the cover), and the title with it.
     static let vinylSlide = 30.0
+    /// Room the title leaves for the tools button.
+    static let toolsRoom = 32.0
 
     var body: some View {
         let media = director.media
@@ -470,7 +472,7 @@ private struct PlayerCard: View {
                 .transition(.trackSwap)
             }
             .animation(.easeInOut(duration: 0.28), value: media.id)
-            .frame(width: card.width - 156 - (director.vinylOut ? Self.vinylSlide : 0), alignment: .leading)
+            .frame(width: card.width - 156 - Self.toolsRoom - (director.vinylOut ? Self.vinylSlide : 0), alignment: .leading)
             .offset(x: 92 + (director.vinylOut ? Self.vinylSlide : 0), y: 26)
             .animation(.spring(duration: 0.5, bounce: 0.25), value: director.vinylOut)
 
@@ -481,6 +483,11 @@ private struct PlayerCard: View {
             // clicks), with the hold riding beside it; a hold that took the record out swallows the button's click.
             CoverButton(director: director)
                 .offset(x: 20, y: 20)
+
+            // The tools, in sight (a double-click on the notch itself also opens them, but nothing on screen said so):
+            // left of the music bars, which ride into the top right corner.
+            ToolsButton { director.openTray() }
+                .offset(x: card.width - 64 - Self.toolsRoom, y: 24)
 
             // The row is the scrubber's 20 pt target tall, so it sits 3 pt higher to keep the bar where it was.
             PlayerProgress(director: director)
@@ -589,6 +596,28 @@ private struct PlayerProgress: View {
             guard length > 0 else { return }
             director.seek(to: director.elapsed + (direction == .increment ? 5 : -5))
         }
+    }
+}
+
+/// Opens the tools beside the player.
+private struct ToolsButton: View {
+    let action: () -> Void
+    @State private var hover = false
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: "square.grid.2x2")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(.white.opacity(hover ? 0.95 : 0.55))
+                .frame(width: 28, height: 28)
+                .background(Circle().fill(.white.opacity(hover ? 0.14 : 0.08)))
+                .contentShape(Circle())
+        }
+        .buttonStyle(PressScaleStyle())
+        .focusEffectDisabled()
+        .onHover { hover = $0 }
+        .help("Tools")
+        .accessibilityLabel("Tools")
     }
 }
 

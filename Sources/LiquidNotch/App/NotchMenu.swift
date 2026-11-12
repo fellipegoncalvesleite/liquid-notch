@@ -27,8 +27,10 @@ final class NotchMenu: NSObject, NSMenuItemValidation {
         }
         notch.autoenablesItems = false
         menu.addItem(withTitle: "Notch", action: nil, keyEquivalent: "").submenu = notch
+    }
 
-        // Updates (1.1): Sparkle checks daily by itself; this checks now.
+    /// Updates (1.1): Sparkle checks daily by itself; this checks now. Its own item, so the menu can place it with the app's.
+    func addUpdates(to menu: NSMenu) {
         let update = menu.addItem(withTitle: "Check for Updates…", action: #selector(checkForUpdates), keyEquivalent: "")
         update.target = self
     }
