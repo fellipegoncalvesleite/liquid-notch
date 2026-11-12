@@ -8,6 +8,7 @@
 - **Click Opens Lyrics** (right-click menu, off by default): a click on the music opens the big player straight away.
 - **Today in the tools.** A Today tool (labelled with your next event's time) opens the day from every calendar: all-day events on top, then each event with what's on now highlighted and its time left.
 - **Overlapping events.** The event card shows the one that started last or is about to start, so lunch at 12:30 shows even while a 9:30–13:30 class runs, with "+N more now" and the event's calendar.
+- **Choose your calendars.** Right-click › Calendars lists every calendar by account with its colour; untick one and its events leave the card, the ball, Today and the start alerts (new calendars show by default; Show All resets).
 - **Event Start Alerts** (right-click menu, off by default): a moment in the notch as each event starts.
 - **A scoreboard for events.** The event card shows the time left as a big figure, the event's progress as a bar (like a match's), and its calendar or who's in it.
 - **The event ball counts down.** Beside the music, an event's ball is a ring: orange toward the start, then the calendar's colour emptying as it runs, red in its last 5 minutes; the ear and card say the time left.

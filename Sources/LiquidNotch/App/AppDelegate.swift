@@ -114,6 +114,36 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         focusClick.target = self
         focusClick.state = UserDefaults.standard.bool(forKey: "clickOpensFocus") ? .on : .off
         focusClick.toolTip = "A click on the music opens the big player with lyrics. Scroll down on the island for the small player and the tools."
+        // Which calendars show (the event card, its ball, Today, the start alerts), grouped by account.
+        if let watcher = MeetingWatcher.shared {
+            let choices = watcher.calendarChoices()
+            if !choices.isEmpty {
+                let cals = NSMenu()
+                cals.autoenablesItems = false
+                var account: String?
+                for c in choices {
+                    if c.account != account {
+                        if account != nil { cals.addItem(.separator()) }
+                        cals.addItem(.sectionHeader(title: c.account))
+                        account = c.account
+                    }
+                    let item = cals.addItem(withTitle: c.title, action: #selector(toggleCalendar(_:)), keyEquivalent: "")
+                    item.target = self
+                    item.representedObject = c.id
+                    item.state = c.shown ? .on : .off
+                    let dot = NSImage(size: NSSize(width: 10, height: 10), flipped: false) { r in
+                        c.color.setFill(); NSBezierPath(ovalIn: r).fill(); return true
+                    }
+                    item.image = dot
+                }
+                cals.addItem(.separator())
+                cals.addItem(withTitle: "Show All", action: #selector(showAllCalendars), keyEquivalent: "").target = self
+                let shown = choices.filter(\.shown).count
+                let item = menu.addItem(withTitle: "Calendars", action: nil, keyEquivalent: "")
+                item.submenu = cals
+                if shown < choices.count { item.badge = NSMenuItemBadge(string: "\(shown) of \(choices.count)") }
+            }
+        }
         let starts = menu.addItem(withTitle: "Event Start Alerts", action: #selector(toggleStartAlerts(_:)), keyEquivalent: "")
         starts.target = self
         starts.state = UserDefaults.standard.bool(forKey: "calendarStartAlerts") ? .on : .off
@@ -168,6 +198,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func toggleClickOpensFocus(_ sender: NSMenuItem) {
         UserDefaults.standard.set(sender.state != .on, forKey: "clickOpensFocus")
+    }
+
+    @objc private func toggleCalendar(_ sender: NSMenuItem) {
+        guard let id = sender.representedObject as? String else { return }
+        MeetingWatcher.shared?.setCalendar(id, shown: sender.state != .on)
+    }
+
+    @objc private func showAllCalendars() {
+        MeetingWatcher.hidden = []
+        MeetingWatcher.shared?.check()
     }
 
     @objc private func toggleStartAlerts(_ sender: NSMenuItem) {
